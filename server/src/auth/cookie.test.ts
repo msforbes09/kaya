@@ -62,3 +62,18 @@ describe("pending signup cookie", () => {
     expect(clearPendingCookieHeader()).toContain("Max-Age=0");
   });
 });
+
+describe("domain separation between the two cookies", () => {
+  it("never accepts a pending value as a session, or a session value as pending", () => {
+    const session = signSession("member-1", SECRET, 1_000_000);
+    const pending = signPending({ githubId: 42, login: "octo", avatarUrl: "https://a/x.png" }, SECRET, 1_000_000);
+
+    expect(verifyPending(session, SECRET, 1_000_001)).toBeNull();
+    expect(verifySession(pending, SECRET, 1_000_001)).toBeNull();
+
+    // Even a pending payload dressed up in the session's three-part shape must
+    // not verify: the MACs cover different prefixes.
+    const [payload, sig] = pending.split(".");
+    expect(verifySession(`${payload}.1000000.${sig}`, SECRET, 1_000_001)).toBeNull();
+  });
+});

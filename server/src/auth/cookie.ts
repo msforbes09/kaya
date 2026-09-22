@@ -3,15 +3,19 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 export const SESSION_COOKIE = "kaya_session";
 const MAX_AGE_MS = 30 * 86_400_000;
 
-function mac(payload: string, secret: string): string {
-  return createHmac("sha256", secret).update(payload).digest("base64url");
+/**
+ * Domain separated: a value signed for one cookie can never verify as the
+ * other, whatever shape it is squeezed into.
+ */
+function mac(domain: "session" | "pending", payload: string, secret: string): string {
+  return createHmac("sha256", secret).update(`${domain}:${payload}`).digest("base64url");
 }
 
 /** value = base64url(memberId).issuedAtMs.hmac */
 export function signSession(memberId: string, secret: string, now = Date.now()): string {
   const encodedId = Buffer.from(memberId).toString("base64url");
   const payload = `${encodedId}.${now}`;
-  return `${payload}.${mac(payload, secret)}`;
+  return `${payload}.${mac("session", payload, secret)}`;
 }
 
 export function verifySession(value: string | undefined, secret: string, now = Date.now()): string | null {
@@ -20,7 +24,7 @@ export function verifySession(value: string | undefined, secret: string, now = D
   if (parts.length !== 3) return null;
   const [encodedId, issued, sig] = parts;
   const payload = `${encodedId}.${issued}`;
-  const expected = mac(payload, secret);
+  const expected = mac("session", payload, secret);
   const a = Buffer.from(sig);
   const b = Buffer.from(expected);
   if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
@@ -54,7 +58,7 @@ export function signPending(user: { githubId: number; login: string; avatarUrl: 
   const payload = Buffer.from(
     JSON.stringify({ githubId: user.githubId, login: user.login, avatarUrl: user.avatarUrl, iat: now }),
   ).toString("base64url");
-  return `${payload}.${mac(payload, secret)}`;
+  return `${payload}.${mac("pending", payload, secret)}`;
 }
 
 export function verifyPending(value: string | undefined, secret: string, now = Date.now()): PendingSignup | null {
@@ -63,7 +67,7 @@ export function verifyPending(value: string | undefined, secret: string, now = D
   if (parts.length !== 2) return null;
   const [payload, sig] = parts;
   const a = Buffer.from(sig);
-  const b = Buffer.from(mac(payload, secret));
+  const b = Buffer.from(mac("pending", payload, secret));
   if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
   let parsed: PendingSignup;
   try {
