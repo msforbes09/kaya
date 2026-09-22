@@ -13,16 +13,21 @@ export interface PairingDeps {
 
 export function pairingRoutes({ secret, publicUrl, now = Date.now }: PairingDeps) {
   const app = new Hono();
-  const pendingMeta = new Map<string, { name: string; workspace: string }>();
+  const pendingMeta = new Map<string, { name: string; workspace: string; expiresAt: number }>();
 
   app.post("/api/pair/start", async (c) => {
     const body = (await c.req.json().catch(() => ({}))) as { name?: string; workspace?: string };
     const name = String(body.name ?? "runner").slice(0, 80);
     const workspace = String(body.workspace ?? "").slice(0, 400);
+    const nowMs = now();
+    for (const [id, meta] of pendingMeta) {
+      if (meta.expiresAt < nowMs) pendingMeta.delete(id);
+    }
     const code = newPairingCode();
     const publicId = randomUUID();
-    await repo.createPairingCode(code, publicId, pairingExpiresAt(now()));
-    pendingMeta.set(publicId, { name, workspace });
+    const expiresAt = pairingExpiresAt(nowMs);
+    await repo.createPairingCode(code, publicId, expiresAt);
+    pendingMeta.set(publicId, { name, workspace, expiresAt: expiresAt.getTime() });
     return c.json({ code, publicId, verifyUrl: `${publicUrl}/pair?code=${code}` });
   });
 

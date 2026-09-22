@@ -43,6 +43,20 @@ describe("pairing routes", () => {
     expect(repo.deletePairingCode).toHaveBeenCalledWith(start.code);
   });
 
+  it("prunes abandoned pairing metadata on the next start, so a stale publicId can't be polled into a runner", async () => {
+    let t = 1_000_000;
+    const a = pairingRoutes({ secret, publicUrl: "https://kaya.example", now: () => t });
+    const start = await (await a.request("/api/pair/start", { method: "POST", body: JSON.stringify({ name: "mac", workspace: "/w" }), headers: { "content-type": "application/json" } })).json();
+
+    t = 1_000_000 + 600_001;
+    await a.request("/api/pair/start", { method: "POST", body: JSON.stringify({ name: "pc", workspace: "/w2" }), headers: { "content-type": "application/json" } });
+
+    vi.mocked(repo.getPairingByPublicId).mockResolvedValueOnce({ code: start.code, runnerPublicId: start.publicId, memberId: "m1", expiresAt: new Date(900_000) } as never);
+    const polled = await (await a.request(`/api/pair/poll?publicId=${start.publicId}`)).json();
+    expect(polled).toEqual({ status: "expired" });
+    expect(repo.upsertRunner).not.toHaveBeenCalled();
+  });
+
   it("poll reports expired codes", async () => {
     vi.mocked(repo.getPairingByPublicId).mockResolvedValueOnce({ code: "1", runnerPublicId: "p", memberId: null, expiresAt: new Date(900_000) } as never);
     expect(await (await app().request("/api/pair/poll?publicId=p")).json()).toEqual({ status: "expired" });
