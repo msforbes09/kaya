@@ -122,30 +122,42 @@ export class Session {
       { conversationId: conv.id, text: clean, resumeSessionId },
       {
         onDelta: (t) => {
+          if (abort.signal.aborted) return;
           this.send({ type: "assistant_delta", text: t });
           for (const s of chunker.push(t)) speakSentence(s);
         },
         onTool: (name, summary) => {
+          if (abort.signal.aborted) return;
           this.send({ type: "tool", name, summary });
           void repo.addMessage(conv.id, "tool", summary, { name });
         },
         onPermission: (id, question, detail) => {
+          if (abort.signal.aborted) return;
           this.send({ type: "permission_request", id, question, detail });
           speakSentence(question);
         },
         onDone: async ({ sessionId, costUsd, fullText }) => {
-          const tail = chunker.flush();
-          if (tail) speakSentence(tail);
-          if (sessionId && status.runnerId) {
-            conv.agentSessionId = sessionId;
-            conv.runnerId = status.runnerId;
-            await repo.setAgentSession(conv.id, sessionId, status.runnerId);
+          if (abort.signal.aborted) return;
+          try {
+            const tail = chunker.flush();
+            if (tail) speakSentence(tail);
+            if (sessionId && status.runnerId) {
+              conv.agentSessionId = sessionId;
+              conv.runnerId = status.runnerId;
+              await repo.setAgentSession(conv.id, sessionId, status.runnerId);
+            }
+            await repo.addMessage(conv.id, "assistant", fullText, { costUsd });
+            this.send({ type: "assistant_done", text: fullText, costUsd });
+          } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            console.error("session error handling turn_done:", err);
+            this.send({ type: "error", message });
+          } finally {
+            resolveFinish();
           }
-          await repo.addMessage(conv.id, "assistant", fullText, { costUsd });
-          this.send({ type: "assistant_done", text: fullText, costUsd });
-          resolveFinish();
         },
         onError: (message) => {
+          if (abort.signal.aborted) return;
           this.send({ type: "error", message });
           resolveFinish();
         },

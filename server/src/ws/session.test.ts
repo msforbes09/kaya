@@ -6,6 +6,7 @@ vi.mock("../db/repo.js", () => ({
   addMessage: vi.fn(),
   setAgentSession: vi.fn(),
 }));
+vi.mock("../voice/tts.js", () => ({ ElevenLabsSpeaker: class { speak = vi.fn() } }));
 
 import * as repo from "../db/repo.js";
 import { RunnerHub } from "./runner-hub.js";
@@ -105,5 +106,44 @@ describe("Session", () => {
     expect(json()).toContainEqual({ type: "permission_request", id: "p1", question: "Run it?", detail: "rm -rf x" });
     await s.handle(JSON.stringify({ type: "permission_response", id: "p1", allow: false }));
     expect(JSON.parse(link.sent[1])).toEqual({ type: "permission_response", id: "p1", allow: false });
+  });
+
+  it("drops turn events that arrive after the turn was cancelled", async () => {
+    const hub = new RunnerHub(memory, () => "turn-1");
+    const link = runnerLink();
+    hub.attach("m1", "r1", "mac", link);
+    const { ws, json } = fakeWs();
+    const s = new Session(ws, "m1", hub, speaker);
+    await s.handle(JSON.stringify({ type: "hello" }));
+    await s.handle(JSON.stringify({ type: "user_text", text: "hi" }));
+
+    await s.handle(JSON.stringify({ type: "cancel" }));
+
+    await hub.handleMessage("m1", JSON.stringify({ type: "text_delta", turnId: "turn-1", text: "Hello there." }));
+    await hub.handleMessage("m1", JSON.stringify({ type: "turn_done", turnId: "turn-1", sessionId: "s1", costUsd: 0.1, fullText: "Hello there." }));
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(json()).not.toContainEqual({ type: "assistant_delta", text: "Hello there." });
+    expect(json()).not.toContainEqual({ type: "assistant_done", text: "Hello there.", costUsd: 0.1 });
+    expect(repo.addMessage).not.toHaveBeenCalledWith("c1", "assistant", "Hello there.", { costUsd: 0.1 });
+  });
+
+  it("reports an error and still sends speak_end when storing the assistant message fails", async () => {
+    vi.mocked(repo.addMessage).mockImplementation(async (_conversationId, role) => {
+      if (role === "assistant") throw new Error("db down");
+    });
+    const hub = new RunnerHub(memory, () => "turn-1");
+    const link = runnerLink();
+    hub.attach("m1", "r1", "mac", link);
+    const { ws, json } = fakeWs();
+    const s = new Session(ws, "m1", hub, speaker);
+    await s.handle(JSON.stringify({ type: "hello" }));
+    await s.handle(JSON.stringify({ type: "user_text", text: "hi" }));
+
+    await hub.handleMessage("m1", JSON.stringify({ type: "turn_done", turnId: "turn-1", sessionId: "s1", costUsd: 0.1, fullText: "Hello there." }));
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(json()).toContainEqual({ type: "error", message: "db down" });
+    expect(json().at(-1)).toEqual({ type: "speak_end" });
   });
 });
