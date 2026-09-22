@@ -16,6 +16,10 @@ export async function createMember(u: { githubId: number; login: string; avatarU
   return row;
 }
 
+export async function deleteMember(id: string) {
+  await db.delete(schema.members).where(eq(schema.members.id, id));
+}
+
 // invites
 export async function createInvite(createdBy: string | null, code: string) {
   await db.insert(schema.invites).values({ code, createdBy });
@@ -29,11 +33,6 @@ export async function redeemInvite(code: string, memberId: string): Promise<bool
     .returning();
   return rows.length === 1;
 }
-export async function inviteIsUnused(code: string): Promise<boolean> {
-  const row = await db.query.invites.findFirst({ where: eq(schema.invites.code, code) });
-  return !!row && row.usedBy === null;
-}
-
 // pairing
 export async function createPairingCode(code: string, runnerPublicId: string, expiresAt: Date) {
   await db.insert(schema.pairingCodes).values({ code, runnerPublicId, expiresAt });

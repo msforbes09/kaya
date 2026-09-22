@@ -4,8 +4,8 @@ vi.mock("../db/repo.js", () => ({
   findMemberByGithubId: vi.fn(),
   createMember: vi.fn(),
   getMember: vi.fn(),
-  inviteIsUnused: vi.fn(),
   redeemInvite: vi.fn(),
+  deleteMember: vi.fn(),
 }));
 
 import * as repo from "../db/repo.js";
@@ -71,7 +71,6 @@ describe("auth routes", () => {
   });
 
   it("POST /auth/invite creates the member and burns the invite when the pending cookie and code are valid", async () => {
-    vi.mocked(repo.inviteIsUnused).mockResolvedValue(true);
     vi.mocked(repo.createMember).mockResolvedValue({ id: "m9" } as never);
     vi.mocked(repo.redeemInvite).mockResolvedValue(true);
     const res = await app().request("/auth/invite", { method: "POST", body: "invite=abcdefghjklm", headers: { "content-type": "application/x-www-form-urlencoded", cookie: pendingCookie() } });
@@ -84,11 +83,13 @@ describe("auth routes", () => {
     expect(cookies).toContain("kaya_pending=;");
   });
 
-  it("POST /auth/invite rejects a used or unknown invite", async () => {
-    vi.mocked(repo.inviteIsUnused).mockResolvedValue(false);
+  it("POST /auth/invite rejects a used or unknown invite and undoes the member it created", async () => {
+    vi.mocked(repo.createMember).mockResolvedValue({ id: "m9" } as never);
+    vi.mocked(repo.redeemInvite).mockResolvedValue(false);
     const res = await app().request("/auth/invite", { method: "POST", body: "invite=NOPE", headers: { "content-type": "application/x-www-form-urlencoded", cookie: pendingCookie() } });
     expect(res.status).toBe(403);
-    expect(repo.createMember).not.toHaveBeenCalled();
+    expect(repo.deleteMember).toHaveBeenCalledWith("m9");
+    expect(res.headers.get("set-cookie") ?? "").not.toContain("kaya_session=");
   });
 
   it("POST /auth/invite needs a live pending cookie", async () => {

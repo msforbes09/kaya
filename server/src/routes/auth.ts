@@ -74,11 +74,15 @@ export function authRoutes({ config, exchange = exchangeGithubCode }: AuthDeps) 
 
     const form = await c.req.parseBody();
     const clean = String(form.invite ?? "").trim().toUpperCase();
-    if (!(await repo.inviteIsUnused(clean)))
-      return c.html(page("Kaya — invite", `<main><h1>Invite not valid</h1><p>That code is unknown or already used. Ask for a new one.</p></main>`), 403);
 
+    // Burning the invite is the only check: redeemInvite is a conditional
+    // update, so two people racing one code cannot both win it. The member has
+    // to exist first to be recorded as the redeemer, so undo it if we lost.
     const member = await repo.createMember({ githubId: pending.githubId, login: pending.login, avatarUrl: pending.avatarUrl });
-    await repo.redeemInvite(clean, member.id);
+    if (!(await repo.redeemInvite(clean, member.id))) {
+      await repo.deleteMember(member.id);
+      return c.html(page("Kaya — invite", `<main><h1>Invite not valid</h1><p>That code is unknown or already used. Ask for a new one.</p></main>`), 403);
+    }
 
     c.header("Set-Cookie", sessionCookieHeader(signSession(member.id, config.COOKIE_SECRET), config.isProd), { append: true });
     c.header("Set-Cookie", clearPendingCookieHeader(), { append: true });
