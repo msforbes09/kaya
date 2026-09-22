@@ -12,6 +12,7 @@ function TokenGate({ onSave }: { onSave: (t: string) => void }) {
   const [value, setValue] = useState("");
   return (
     <main className="gate">
+      <img className="logo" src="/kaya.png" alt="" width={96} height={96} />
       <h1>Kaya</h1>
       <p>Paste the access token from your server's .env to connect.</p>
       <input
