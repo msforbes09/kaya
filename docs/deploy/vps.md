@@ -38,7 +38,7 @@ DOMAIN=<DOMAIN>
 
 ```bash
 git clone git@github.com:msforbes09/kaya.git && cd kaya && docker compose up -d --build
-docker compose exec app npm run invite -- --admin
+docker compose exec app npm run invite:prod -- --admin
 ```
 
 ## 5. Updates
