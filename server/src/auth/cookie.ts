@@ -7,9 +7,10 @@ function mac(payload: string, secret: string): string {
   return createHmac("sha256", secret).update(payload).digest("base64url");
 }
 
-/** value = memberId.issuedAtMs.hmac (where hmac is over the plaintext payload) */
+/** value = base64url(memberId).issuedAtMs.hmac */
 export function signSession(memberId: string, secret: string, now = Date.now()): string {
-  const payload = `${memberId}.${now}`;
+  const encodedId = Buffer.from(memberId).toString("base64url");
+  const payload = `${encodedId}.${now}`;
   return `${payload}.${mac(payload, secret)}`;
 }
 
@@ -17,15 +18,15 @@ export function verifySession(value: string | undefined, secret: string, now = D
   if (!value) return null;
   const parts = value.split(".");
   if (parts.length !== 3) return null;
-  const [id, issued, sig] = parts;
-  const payload = `${id}.${issued}`;
+  const [encodedId, issued, sig] = parts;
+  const payload = `${encodedId}.${issued}`;
   const expected = mac(payload, secret);
   const a = Buffer.from(sig);
   const b = Buffer.from(expected);
   if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
   const issuedAt = Number(issued);
   if (!Number.isFinite(issuedAt) || now - issuedAt > MAX_AGE_MS) return null;
-  return id;
+  return Buffer.from(encodedId, "base64url").toString();
 }
 
 export function sessionCookieHeader(value: string, secure: boolean): string {
