@@ -9,3 +9,4 @@ web/dev-dist
 *.local.*
 .claude/settings.local.json
 .claude/worktrees
+.superpowers
