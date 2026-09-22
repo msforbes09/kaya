@@ -6,7 +6,7 @@ over cellular or wifi, once the runner is also connected from a laptop.
 - [ ] **Sign in.** Open `https://<DOMAIN>` in Safari, tap "Sign in with
       GitHub", authorize the app.
 - [ ] **Invite.** Paste the invite code from `docker compose exec app npm run
-      invite -- --admin` (or a code an admin generated). Expect the console
+      invite:prod -- --admin` (or a code an admin generated). Expect the console
       to load with a "No runner connected" banner.
 - [ ] **Pair from the phone.** With the runner started on a laptop
       (`KAYA_CLOUD_URL=https://<DOMAIN> npx kaya-runner`, or `npm run

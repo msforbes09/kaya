@@ -41,6 +41,13 @@ git clone git@github.com:msforbes09/kaya.git && cd kaya && docker compose up -d 
 docker compose exec app npm run invite:prod -- --admin
 ```
 
+`--admin` grants nothing by itself: nothing in v1 reads `is_admin`. It prints
+the invite code and the SQL to promote yourself once you have signed in:
+
+```bash
+psql -U kaya -d kaya -c "UPDATE members SET is_admin = true WHERE github_login = '<you>';"
+```
+
 ## 5. Updates
 
 ```bash

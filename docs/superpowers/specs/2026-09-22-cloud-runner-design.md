@@ -43,9 +43,9 @@ Unknown types are dropped on both sides. Runner handshake: `Authorization: Beare
 ## Accounts, invites, pairing
 
 - GitHub OAuth implemented with Hono routes and `fetch`: `/auth/github` redirects, `/auth/github/callback` exchanges the code and reads the user.
-- First sign-in requires an invite code entered on the callback page. A valid unused code creates the member and is burned. Later sign-ins skip this.
+- First sign-in requires an invite code. The callback exchanges the OAuth code once (it is single use), stores the GitHub identity in a short-lived signed `kaya_pending` cookie (5 minutes, HMAC with `COOKIE_SECRET`) and renders a form that POSTs the invite to `/auth/invite`. That route creates the member and burns the code with a conditional update; if the code was already taken the member is deleted again and the page returns 403. Later sign-ins skip all of this.
 - Session: signed cookie (HMAC, `COOKIE_SECRET`) holding member id, 30 days, `HttpOnly`, `Secure`, `SameSite=Lax`.
-- `npm run invite` on the server prints a new code. `npm run invite -- --admin` bootstraps the first member's code with `is_admin`.
+- `npm run invite` on the server prints a new code (`npm run invite:prod` in the built image). `--admin` does not grant anything: v1 has no admin-only behaviour, so the flag only prints the SQL to promote the first member by hand, `UPDATE members SET is_admin = true WHERE github_login = '<you>';`. The `is_admin` column stays in the schema for later.
 - Pairing (device code): runner calls `POST /api/pair/start` → `{ code, publicId, verifyUrl }`; prints them; polls `GET /api/pair/poll?publicId=` until the member confirms at `/pair` (signed in) → cloud creates the runner row with a fresh random token (stored hashed, returned once). Runner saves `~/.kaya/runner.json` `{ token, cloudUrl, workspace }`. Codes expire after 10 minutes.
 - One runner per member: pairing again replaces the row; a second live socket closes the first.
 
