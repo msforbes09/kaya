@@ -44,4 +44,7 @@ The mic only works over HTTPS on iPhone. For phone testing before deployment, ru
 
 ## Production
 
-Build once (`npm run build`), then `NODE_ENV=production npm start` serves the PWA and the API from one origin. Deployment (Docker Compose, Caddy, TLS) is documented separately.
+Kaya runs as three processes: the cloud (Hono API, web PWA, Postgres client),
+Postgres on the host, and a runner per member's machine that connects out to
+the cloud's `/runner` socket. Docker Compose builds and runs the cloud behind
+Caddy, which terminates TLS. See `docs/deploy/vps.md` for the full VPS setup.
