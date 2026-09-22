@@ -81,4 +81,24 @@ describe("RunnerHub", () => {
     hub.startTurn("m1", { conversationId: "c1", text: "hi" }, handlers())!.cancel();
     expect(JSON.parse(l.sent[1])).toEqual({ type: "cancel", turnId: "turn-1" });
   });
+
+  it("sends memory_result to the current runner even if it was replaced while the memory call was in flight", async () => {
+    let resolveRecall: (v: string) => void = () => {};
+    const deferredRecall = new Promise<string>((resolve) => {
+      resolveRecall = resolve;
+    });
+    const deferringMemory = { remember: vi.fn(async () => ""), recall: vi.fn(async () => deferredRecall) };
+    const hub = new RunnerHub(deferringMemory);
+    const a = link();
+    const b = link();
+    hub.attach("m1", "r1", "mac", a);
+    const memoryCallPromise = hub.handleMessage("m1", JSON.stringify({ type: "memory_call", turnId: "x", callId: "c1", tool: "recall", args: { query: "test" } }));
+    // Runner A receives the call, but it's still waiting for the memory service
+    hub.attach("m1", "r2", "desk", b);
+    // Runner B replaces A. Now when the memory call completes, it should go to B, not A
+    resolveRecall("Memory result");
+    await memoryCallPromise;
+    expect(a.sent).toEqual([]);
+    expect(JSON.parse(b.sent[0])).toEqual({ type: "memory_result", callId: "c1", result: "Memory result" });
+  });
 });

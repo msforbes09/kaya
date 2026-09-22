@@ -93,7 +93,10 @@ export class RunnerHub {
     if (msg.type === "memory_call") {
       const result =
         msg.tool === "remember" ? await this.memory.remember(memberId, msg.args) : await this.memory.recall(memberId, msg.args);
-      this.push(cur, { type: "memory_result", callId: msg.callId, result });
+      const fresh = this.live.get(memberId);
+      if (fresh) {
+        this.push(fresh, { type: "memory_result", callId: msg.callId, result });
+      }
       return;
     }
 
