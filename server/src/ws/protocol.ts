@@ -14,6 +14,7 @@ export type ServerMessage =
   | { type: "tool"; name: string; summary: string }
   | { type: "status"; text: string }
   | { type: "permission_request"; id: string; question: string; detail: string }
+  | { type: "runner_status"; online: boolean; name?: string }
   | { type: "speak_end" }
   | { type: "error"; message: string };
 
