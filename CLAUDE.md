@@ -44,6 +44,6 @@ Hono over Next. ElevenLabs for STT and TTS. Postgres + pgvector. Sentence-chunke
 ## Security checklist (self-review before every PR)
 
 - Bearer token compared in constant time, never logged, never echoed to the client.
-- Every Bash command the agent runs passes `permissions.ts`. New destructive patterns go in `server/src/agent/destructive-patterns.json`, which the dev hook shares.
+- Every Bash command the agent runs passes `permissions.ts`. New destructive patterns go in `runner/src/agent/destructive-patterns.json`, which the dev hook shares.
 - Nothing from `process.env` reaches the model prompt, the memory table, or TTS.
 - WebSocket messages are validated before use. Unknown types are dropped.

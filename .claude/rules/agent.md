@@ -1,8 +1,10 @@
 ---
 paths:
-  - "server/src/agent/**"
+  - "runner/src/agent/**"
 ---
 # Agent layer rules
+
+The runner workspace owns the agent layer: it runs the SDK loop locally on the member's machine and talks to the cloud relay over the runner socket, so nothing here executes in `server/`.
 
 - `runner.ts` is the only place that calls the SDK `query()`. Every SDK message shape it reads (`stream_event`, `assistant`, `result`) is checked against the installed `@anthropic-ai/claude-agent-sdk` types, not memory.
 - `permissions.ts` owns the tiers: auto-allowed read tools, silent edits, screened Bash, ask for everything else. Do not add allow paths elsewhere.
