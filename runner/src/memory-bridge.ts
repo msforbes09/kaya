@@ -4,7 +4,7 @@ type MemoryCall = { type: "memory_call"; turnId: string; callId: string; tool: "
 
 /** Lets the agent's memory tools call the cloud over the runner socket and await the answer. */
 export class MemoryBridge {
-  private waiting = new Map<string, (result: string) => void>();
+  private waiting = new Map<string, { resolve: (result: string) => void; reject: (err: Error) => void }>();
 
   constructor(
     private readonly send: (msg: MemoryCall) => void,
@@ -14,8 +14,8 @@ export class MemoryBridge {
 
   call(tool: "remember" | "recall", args: Record<string, unknown>): Promise<string> {
     const callId = this.newId();
-    return new Promise((resolve) => {
-      this.waiting.set(callId, resolve);
+    return new Promise((resolve, reject) => {
+      this.waiting.set(callId, { resolve, reject });
       this.send({ type: "memory_call", turnId: this.currentTurnId(), callId, tool, args });
     });
   }
@@ -24,7 +24,12 @@ export class MemoryBridge {
     const r = this.waiting.get(callId);
     if (!r) return;
     this.waiting.delete(callId);
-    r(result);
+    r.resolve(result);
+  }
+
+  rejectAll(reason: string): void {
+    for (const r of this.waiting.values()) r.reject(new Error(reason));
+    this.waiting.clear();
   }
 
   pending(): number {

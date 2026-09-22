@@ -17,4 +17,13 @@ describe("MemoryBridge", () => {
     const bridge = new MemoryBridge(vi.fn(), () => "t", () => "c");
     expect(() => bridge.resolve("nope", "x")).not.toThrow();
   });
+
+  it("rejectAll rejects every pending call and clears the map", async () => {
+    const bridge = new MemoryBridge(vi.fn(), () => "turn-1", () => "call-1");
+    const p = bridge.call("recall", { query: "x" });
+    expect(bridge.pending()).toBe(1);
+    bridge.rejectAll("runner disconnected");
+    await expect(p).rejects.toThrow("runner disconnected");
+    expect(bridge.pending()).toBe(0);
+  });
 });
