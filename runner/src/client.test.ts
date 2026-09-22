@@ -73,4 +73,33 @@ describe("RunnerClient", () => {
     await expect(p).rejects.toThrow("runner disconnected");
     client.stop();
   });
+
+  it("does not send on the old socket after close, and only reconnects after sleep resolves", async () => {
+    const sockets: ReturnType<typeof fakeSocket>[] = [];
+    const sleeps: number[] = [];
+    let resolveSleep: () => void = () => {};
+    const client = new RunnerClient(
+      { cloudUrl: "https://k.example", token: "tok", workspace: "/w" },
+      {
+        makeSocket: () => { const s = fakeSocket(); sockets.push(s); return s; },
+        sleep: (ms) => { sleeps.push(ms); return new Promise<void>((r) => { resolveSleep = r; }); },
+        log: () => {},
+        mcpServer: {} as never,
+      },
+    );
+    client.start();
+    sockets[0].emit("open");
+    sockets[0].emit("close");
+
+    expect(() => client.bridge.call("recall", { query: "x" })).not.toThrow();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(sockets[0].sent).toEqual([]);
+    expect(sleeps).toEqual([1000]);
+    expect(sockets.length).toBe(1);
+
+    resolveSleep();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(sockets.length).toBe(2);
+    client.stop();
+  });
 });

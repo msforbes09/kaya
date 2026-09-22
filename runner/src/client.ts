@@ -67,6 +67,7 @@ export class RunnerClient {
     s.on("message", (data: unknown) => this.handle(String(data)));
     s.on("error", (err: unknown) => log(`socket error: ${err instanceof Error ? err.message : String(err)}`));
     s.on("close", () => {
+      this.socket = null;
       this.bridge.rejectAll("runner disconnected");
       this.current?.abort();
       this.current = null;
@@ -78,7 +79,13 @@ export class RunnerClient {
   }
 
   private send(m: RunnerToCloud): void {
-    this.socket?.send(JSON.stringify(m));
+    if (!this.socket) return;
+    try {
+      this.socket.send(JSON.stringify(m));
+    } catch (err) {
+      const log = this.deps.log ?? console.log;
+      log(`send failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
   }
 
   handle(raw: string): void {
