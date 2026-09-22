@@ -12,3 +12,12 @@
 - Phone auto-reconnect.
 - Mic pause while speaking.
 - Model choice in runner.
+- Runner reconnect: add jitter to the backoff and stop retrying on a 4401 close (revoked token) with a distinct log line.
+- Cookie revocation: sessions carry no epoch, so a deleted member keeps a live socket up to 30 days; add a member-level session version.
+- `server/src/ws/runner-socket.ts` has no test; add one asserting a bad bearer token closes with 4401.
+- `repo.upsertRunner` is delete-then-insert outside a transaction; wrap it.
+- `RunnerHub.onStatusChange` never prunes empty listener sets.
+- `POST /auth/logout` has no CSRF check (nuisance forced logout only).
+- Pairing rate-limit state is in-memory per process; fine for one container, revisit if the cloud is ever scaled out.
+- `speak_end` after a cancel can arrive after the next turn starts; the client ignores it today. Document it in the protocol if a client ever keys state off it.
+- `docs/superpowers/plans/2026-09-22-cloud-runner.md` still shows the superseded invite flow and `inviteIsUnused`; it is a historical plan.
