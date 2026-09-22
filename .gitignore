@@ -1,0 +1,11 @@
+node_modules
+dist
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+web/dev-dist
+*.local.*
+.claude/settings.local.json
+.claude/worktrees

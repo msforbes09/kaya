@@ -1,0 +1,11 @@
+[
+  { "source": "\\bgit\\s+push\\b.*(--force|-f\\b)", "flags": "" },
+  { "source": "\\bgit\\s+reset\\s+--hard\\b", "flags": "" },
+  { "source": "\\bgit\\s+branch\\s+-D\\b", "flags": "" },
+  { "source": "\\bgit\\s+clean\\b.*-f", "flags": "" },
+  { "source": "\\brm\\s+(-[a-zA-Z]*r[a-zA-Z]*f|-[a-zA-Z]*f[a-zA-Z]*r)\\b", "flags": "" },
+  { "source": "\\bdrop\\s+(table|database)\\b", "flags": "i" },
+  { "source": "\\bdocker\\s+(rm|rmi|system\\s+prune)\\b", "flags": "" },
+  { "source": "\\bkubectl\\s+delete\\b", "flags": "" },
+  { "source": "\\bterraform\\s+(destroy|apply)\\b", "flags": "" }
+]

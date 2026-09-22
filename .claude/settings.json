@@ -1,0 +1,54 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run typecheck*)",
+      "Bash(npm run build*)",
+      "Bash(npm run dev*)",
+      "Bash(npm test*)",
+      "Bash(npm install*)",
+      "Bash(npm ls*)",
+      "Bash(npx tsc*)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git branch*)",
+      "Bash(git add*)",
+      "Bash(git commit*)",
+      "Bash(docker ps*)",
+      "Bash(docker logs*)",
+      "Bash(ls*)",
+      "Bash(cat*)",
+      "Bash(grep*)",
+      "Bash(find*)",
+      "Bash(wc*)"
+    ],
+    "deny": [
+      "Read(./server/.env)",
+      "Read(./web/.env)",
+      "Read(./.env)",
+      "Edit(./server/.env)",
+      "Edit(./web/.env)",
+      "Write(./server/.env)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/block-dangerous-bash.js",
+            "timeout": 5,
+            "statusMessage": "Screening command"
+          },
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/truncate-output.js",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}
