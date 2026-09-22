@@ -13,6 +13,7 @@ import { RunnerHub } from "./ws/runner-hub.js";
 import { runnerSocket } from "./ws/runner-socket.js";
 import { Session } from "./ws/session.js";
 import { escapeHtml } from "./html.js";
+import { memoryServiceFor } from "./memory-service.js";
 import * as repo from "./db/repo.js";
 
 const app = new Hono();
@@ -25,18 +26,11 @@ app.use("*", async (c, next) => {
   console.log(`${c.req.method} ${c.req.path} ${c.res.status} ${Date.now() - start}ms`);
 });
 
-const hub = new RunnerHub({
-  remember: async (memberId, args) => {
-    const a = args as { kind: "fact" | "decision" | "preference" | "project"; subject: string; content: string };
-    const row = await repo.remember(memberId, a.kind, a.subject, a.content);
-    return `Remembered (${row.id}).`;
-  },
-  recall: async (memberId, args) => {
-    const rows = await repo.recall(memberId, String((args as { query?: string }).query ?? ""));
-    if (rows.length === 0) return "Nothing stored about that.";
-    return rows.map((r) => `[${r.kind}] ${r.subject}: ${r.content}`).join("\n");
-  },
-});
+const hub = new RunnerHub(memoryServiceFor(repo));
+
+// A rejected promise anywhere must not take the cloud down: every member's
+// runner and phone socket live in this one process.
+process.on("unhandledRejection", (err) => console.error("unhandled rejection:", err));
 
 app.get("/api/health", (c) => c.json({ ok: true }));
 app.route("/", authRoutes({ config: { ...config, isProd } }));

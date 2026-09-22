@@ -128,6 +128,26 @@ describe("Session", () => {
     expect(repo.addMessage).not.toHaveBeenCalledWith("c1", "assistant", "Hello there.", { costUsd: 0.1 });
   });
 
+  it("logs instead of rejecting when storing a tool message fails", async () => {
+    vi.mocked(repo.addMessage).mockImplementation(async (_conversationId, role) => {
+      if (role === "tool") throw new Error("db down");
+    });
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    const hub = new RunnerHub(memory, () => "turn-1");
+    const link = runnerLink();
+    hub.attach("m1", "r1", "mac", link);
+    const { ws } = fakeWs();
+    const s = new Session(ws, "m1", hub, speaker);
+    await s.handle(JSON.stringify({ type: "hello" }));
+    await s.handle(JSON.stringify({ type: "user_text", text: "hi" }));
+
+    await hub.handleMessage("m1", JSON.stringify({ type: "tool_start", turnId: "turn-1", name: "Bash", summary: "Running: ls" }));
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(errors).toHaveBeenCalledWith("session: storing a tool message failed:", expect.any(Error));
+    errors.mockRestore();
+  });
+
   it("reports an error and still sends speak_end when storing the assistant message fails", async () => {
     vi.mocked(repo.addMessage).mockImplementation(async (_conversationId, role) => {
       if (role === "assistant") throw new Error("db down");

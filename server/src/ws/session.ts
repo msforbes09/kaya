@@ -129,7 +129,9 @@ export class Session {
         onTool: (name, summary) => {
           if (abort.signal.aborted) return;
           this.send({ type: "tool", name, summary });
-          void repo.addMessage(conv.id, "tool", summary, { name });
+          void repo
+            .addMessage(conv.id, "tool", summary, { name })
+            .catch((err) => console.error("session: storing a tool message failed:", err));
         },
         onPermission: (id, question, detail) => {
           if (abort.signal.aborted) return;

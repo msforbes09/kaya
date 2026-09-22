@@ -3,6 +3,9 @@ import { hashRunnerToken } from "../auth/pairing.js";
 import * as repo from "../db/repo.js";
 import type { RunnerHub, RunnerLink } from "./runner-hub.js";
 
+/** Never log message contents: they carry the member's conversation. */
+const logFailure = (err: unknown) => console.error("runner socket:", err);
+
 /** `GET /runner`: authenticates a runner by bearer token and attaches it to the hub. */
 export function runnerSocket(hub: RunnerHub, upgradeWebSocket: UpgradeWebSocket) {
   return upgradeWebSocket(async (c) => {
@@ -17,10 +20,10 @@ export function runnerSocket(hub: RunnerHub, upgradeWebSocket: UpgradeWebSocket)
       onOpen(_evt, ws) {
         link = { send: (d) => ws.send(d), close: (code, reason) => ws.close(code, reason) };
         hub.attach(runner.memberId, runner.id, runner.name, link);
-        void repo.touchRunner(runner.id);
+        void repo.touchRunner(runner.id).catch(logFailure);
       },
       onMessage(evt) {
-        if (typeof evt.data === "string") void hub.handleMessage(runner.memberId, evt.data);
+        if (typeof evt.data === "string") void hub.handleMessage(runner.memberId, evt.data).catch(logFailure);
       },
       onClose() {
         if (link) hub.detach(runner.memberId, link);
