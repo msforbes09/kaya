@@ -25,8 +25,13 @@ export async function exchangeGithubCode(opts: {
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     body: JSON.stringify({ client_id: opts.clientId, client_secret: opts.clientSecret, code: opts.code }),
   });
-  const tokenJson = (await tokenRes.json().catch(() => ({}))) as { access_token?: string };
-  if (!tokenRes.ok || !tokenJson.access_token) throw new Error("github token exchange failed");
+  let tokenJson: { access_token?: string };
+  try {
+    tokenJson = (await tokenRes.json()) as { access_token?: string };
+  } catch {
+    throw new Error("github token exchange failed");
+  }
+  if (!tokenRes.ok || !tokenJson?.access_token) throw new Error("github token exchange failed");
 
   const userRes = await f("https://api.github.com/user", {
     headers: { Authorization: `Bearer ${tokenJson.access_token}`, Accept: "application/vnd.github+json", "User-Agent": "kaya" },

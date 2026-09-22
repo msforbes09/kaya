@@ -1,7 +1,18 @@
 import { Hono } from "hono";
 import { getCookie, setCookie } from "hono/cookie";
 import { randomBytes } from "node:crypto";
-import { clearSessionCookieHeader, sessionCookieHeader, signSession, SESSION_COOKIE, verifySession } from "../auth/cookie.js";
+import {
+  clearPendingCookieHeader,
+  clearSessionCookieHeader,
+  pendingCookieHeader,
+  PENDING_COOKIE,
+  sessionCookieHeader,
+  signPending,
+  signSession,
+  SESSION_COOKIE,
+  verifyPending,
+  verifySession,
+} from "../auth/cookie.js";
 import { exchangeGithubCode, githubAuthorizeUrl } from "../auth/github.js";
 import * as repo from "../db/repo.js";
 import { escapeHtml } from "../html.js";
@@ -27,30 +38,50 @@ export function authRoutes({ config, exchange = exchangeGithubCode }: AuthDeps) 
   });
 
   app.get("/auth/github/callback", async (c) => {
-    const { code, state, invite } = c.req.query();
+    const { code, state } = c.req.query();
     if (!code || !state || state !== getCookie(c, STATE_COOKIE)) return c.text("Bad OAuth state", 400);
+    setCookie(c, STATE_COOKIE, "", { path: "/", maxAge: 0 });
 
-    const user = await exchange({ code, clientId: config.GITHUB_CLIENT_ID, clientSecret: config.GITHUB_CLIENT_SECRET });
-    let member = await repo.findMemberByGithubId(user.githubId);
+    // The OAuth code is single use: exchange it exactly once, here.
+    let user;
+    try {
+      user = await exchange({ code, clientId: config.GITHUB_CLIENT_ID, clientSecret: config.GITHUB_CLIENT_SECRET });
+    } catch (err) {
+      console.error("github exchange failed:", err instanceof Error ? err.name : "error");
+      return c.html(page("Kaya — sign-in failed", `<main><h1>GitHub sign-in failed</h1><p>Try again.</p><p><a href="/auth/github">Retry</a></p></main>`), 502);
+    }
 
+    const member = await repo.findMemberByGithubId(user.githubId);
     if (!member) {
-      if (!invite) {
-        const action = escapeHtml(`/auth/github/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`);
-        return c.html(
-          page(
-            "Kaya — invite",
-            `<form method="get" action="${action}"><h1>Welcome, ${escapeHtml(user.login)}</h1><p>Kaya is invite only. Paste your invite code.</p><input name="invite" placeholder="Invite code" autocapitalize="characters" autocomplete="off"><input type="hidden" name="code" value="${escapeHtml(code)}"><input type="hidden" name="state" value="${escapeHtml(state)}"><button>Join</button></form>`,
-          ),
-        );
-      }
-      const clean = String(invite).trim().toUpperCase();
-      if (!(await repo.inviteIsUnused(clean))) return c.html(page("Kaya — invite", `<main><h1>Invite not valid</h1><p>That code is unknown or already used. Ask for a new one.</p></main>`), 403);
-      member = await repo.createMember({ githubId: user.githubId, login: user.login, avatarUrl: user.avatarUrl });
-      await repo.redeemInvite(clean, member.id);
+      // No invite yet: carry the vouched-for identity in a short-lived signed
+      // cookie so the invite form doesn't have to replay the OAuth code.
+      c.header("Set-Cookie", pendingCookieHeader(signPending(user, config.COOKIE_SECRET), config.isProd), { append: true });
+      return c.html(
+        page(
+          "Kaya — invite",
+          `<form method="post" action="/auth/invite"><h1>Welcome, ${escapeHtml(user.login)}</h1><p>Kaya is invite only. Paste your invite code.</p><input name="invite" placeholder="Invite code" autocapitalize="characters" autocomplete="off"><button>Join</button></form>`,
+        ),
+      );
     }
 
     c.header("Set-Cookie", sessionCookieHeader(signSession(member.id, config.COOKIE_SECRET), config.isProd), { append: true });
-    setCookie(c, STATE_COOKIE, "", { path: "/", maxAge: 0 });
+    return c.redirect("/");
+  });
+
+  app.post("/auth/invite", async (c) => {
+    const pending = verifyPending(getCookie(c, PENDING_COOKIE), config.COOKIE_SECRET);
+    if (!pending) return c.html(page("Kaya — invite", `<main><h1>Sign-in expired</h1><p><a href="/auth/github">Start again</a></p></main>`), 400);
+
+    const form = await c.req.parseBody();
+    const clean = String(form.invite ?? "").trim().toUpperCase();
+    if (!(await repo.inviteIsUnused(clean)))
+      return c.html(page("Kaya — invite", `<main><h1>Invite not valid</h1><p>That code is unknown or already used. Ask for a new one.</p></main>`), 403);
+
+    const member = await repo.createMember({ githubId: pending.githubId, login: pending.login, avatarUrl: pending.avatarUrl });
+    await repo.redeemInvite(clean, member.id);
+
+    c.header("Set-Cookie", sessionCookieHeader(signSession(member.id, config.COOKIE_SECRET), config.isProd), { append: true });
+    c.header("Set-Cookie", clearPendingCookieHeader(), { append: true });
     return c.redirect("/");
   });
 

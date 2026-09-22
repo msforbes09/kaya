@@ -38,3 +38,50 @@ export function sessionCookieHeader(value: string, secure: boolean): string {
 export function clearSessionCookieHeader(): string {
   return `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
 }
+
+export const PENDING_COOKIE = "kaya_pending";
+const PENDING_MAX_AGE_MS = 5 * 60_000;
+
+export interface PendingSignup {
+  githubId: number;
+  login: string;
+  avatarUrl: string;
+  iat: number;
+}
+
+/** value = base64url(json).hmac — a 5 minute proof that GitHub just vouched for this user. */
+export function signPending(user: { githubId: number; login: string; avatarUrl: string }, secret: string, now = Date.now()): string {
+  const payload = Buffer.from(
+    JSON.stringify({ githubId: user.githubId, login: user.login, avatarUrl: user.avatarUrl, iat: now }),
+  ).toString("base64url");
+  return `${payload}.${mac(payload, secret)}`;
+}
+
+export function verifyPending(value: string | undefined, secret: string, now = Date.now()): PendingSignup | null {
+  if (!value) return null;
+  const parts = value.split(".");
+  if (parts.length !== 2) return null;
+  const [payload, sig] = parts;
+  const a = Buffer.from(sig);
+  const b = Buffer.from(mac(payload, secret));
+  if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
+  let parsed: PendingSignup;
+  try {
+    parsed = JSON.parse(Buffer.from(payload, "base64url").toString()) as PendingSignup;
+  } catch {
+    return null;
+  }
+  if (typeof parsed?.githubId !== "number" || typeof parsed?.login !== "string" || typeof parsed?.iat !== "number") return null;
+  if (now - parsed.iat > PENDING_MAX_AGE_MS) return null;
+  return parsed;
+}
+
+export function pendingCookieHeader(value: string, secure: boolean): string {
+  const flags = ["Path=/", "HttpOnly", "SameSite=Lax", `Max-Age=${PENDING_MAX_AGE_MS / 1000}`];
+  if (secure) flags.push("Secure");
+  return `${PENDING_COOKIE}=${value}; ${flags.join("; ")}`;
+}
+
+export function clearPendingCookieHeader(): string {
+  return `${PENDING_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
+}

@@ -9,13 +9,15 @@ vi.mock("../db/repo.js", () => ({
 }));
 
 import * as repo from "../db/repo.js";
-import { signSession } from "../auth/cookie.js";
+import { signPending, signSession } from "../auth/cookie.js";
 import { authRoutes } from "./auth.js";
 
 const cfg = { GITHUB_CLIENT_ID: "cid", GITHUB_CLIENT_SECRET: "sec", COOKIE_SECRET: "0123456789abcdef0123456789abcdef", PUBLIC_URL: "http://localhost:5173", isProd: false };
 const exchange = vi.fn(async () => ({ githubId: 42, login: "octo", avatarUrl: "https://a/x.png" }));
 const app = () => authRoutes({ config: cfg, exchange });
 const stateCookie = "kaya_oauth_state=st4te";
+const pendingCookie = (iat = Date.now()) =>
+  `kaya_pending=${signPending({ githubId: 42, login: "octo", avatarUrl: "https://a/x.png" }, cfg.COOKIE_SECRET, iat)}`;
 
 describe("auth routes", () => {
   beforeEach(() => vi.clearAllMocks());
@@ -35,12 +37,27 @@ describe("auth routes", () => {
     expect(res.headers.get("set-cookie")).toContain("kaya_session=");
   });
 
-  it("asks a new member for an invite code", async () => {
+  it("asks a new member for an invite code, posting to /auth/invite with a pending cookie instead of replaying the OAuth code", async () => {
     vi.mocked(repo.findMemberByGithubId).mockResolvedValue(undefined as never);
     const res = await app().request("/auth/github/callback?code=abc&state=st4te", { headers: { cookie: stateCookie } });
     expect(res.status).toBe(200);
-    expect(await res.text()).toContain('name="invite"');
+    const body = await res.text();
+    expect(body).toContain('name="invite"');
+    expect(body).toContain('method="post"');
+    expect(body).toContain('action="/auth/invite"');
+    expect(body).not.toContain('name="code"');
+    expect(res.headers.get("set-cookie")).toContain("kaya_pending=");
     expect(repo.createMember).not.toHaveBeenCalled();
+  });
+
+  it("renders a 502 page when the GitHub exchange fails, without leaking details", async () => {
+    exchange.mockRejectedValueOnce(new Error("bad_verification_code for client cid"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const res = await app().request("/auth/github/callback?code=abc&state=st4te", { headers: { cookie: stateCookie } });
+    expect(res.status).toBe(502);
+    const body = await res.text();
+    expect(body).toContain("GitHub sign-in failed");
+    expect(body).not.toContain("bad_verification_code");
   });
 
   it("escapes an untrusted GitHub login in the invite page", async () => {
@@ -53,22 +70,32 @@ describe("auth routes", () => {
     expect(body).toContain("&lt;img");
   });
 
-  it("creates the member and burns the invite when the code is valid", async () => {
-    vi.mocked(repo.findMemberByGithubId).mockResolvedValue(undefined as never);
+  it("POST /auth/invite creates the member and burns the invite when the pending cookie and code are valid", async () => {
     vi.mocked(repo.inviteIsUnused).mockResolvedValue(true);
     vi.mocked(repo.createMember).mockResolvedValue({ id: "m9" } as never);
     vi.mocked(repo.redeemInvite).mockResolvedValue(true);
-    const res = await app().request("/auth/github/callback?code=abc&state=st4te&invite=ABCDEFGHJKLM", { headers: { cookie: stateCookie } });
+    const res = await app().request("/auth/invite", { method: "POST", body: "invite=abcdefghjklm", headers: { "content-type": "application/x-www-form-urlencoded", cookie: pendingCookie() } });
     expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("/");
     expect(repo.createMember).toHaveBeenCalledWith({ githubId: 42, login: "octo", avatarUrl: "https://a/x.png" });
     expect(repo.redeemInvite).toHaveBeenCalledWith("ABCDEFGHJKLM", "m9");
+    const cookies = res.headers.get("set-cookie") ?? "";
+    expect(cookies).toContain("kaya_session=");
+    expect(cookies).toContain("kaya_pending=;");
   });
 
-  it("rejects a used or unknown invite", async () => {
-    vi.mocked(repo.findMemberByGithubId).mockResolvedValue(undefined as never);
+  it("POST /auth/invite rejects a used or unknown invite", async () => {
     vi.mocked(repo.inviteIsUnused).mockResolvedValue(false);
-    const res = await app().request("/auth/github/callback?code=abc&state=st4te&invite=NOPE", { headers: { cookie: stateCookie } });
+    const res = await app().request("/auth/invite", { method: "POST", body: "invite=NOPE", headers: { "content-type": "application/x-www-form-urlencoded", cookie: pendingCookie() } });
     expect(res.status).toBe(403);
+    expect(repo.createMember).not.toHaveBeenCalled();
+  });
+
+  it("POST /auth/invite needs a live pending cookie", async () => {
+    const missing = await app().request("/auth/invite", { method: "POST", body: "invite=ABCDEFGHJKLM", headers: { "content-type": "application/x-www-form-urlencoded" } });
+    expect(missing.status).toBe(400);
+    const expired = await app().request("/auth/invite", { method: "POST", body: "invite=ABCDEFGHJKLM", headers: { "content-type": "application/x-www-form-urlencoded", cookie: pendingCookie(Date.now() - 300_001) } });
+    expect(expired.status).toBe(400);
     expect(repo.createMember).not.toHaveBeenCalled();
   });
 
