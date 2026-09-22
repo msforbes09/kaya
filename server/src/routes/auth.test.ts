@@ -43,6 +43,16 @@ describe("auth routes", () => {
     expect(repo.createMember).not.toHaveBeenCalled();
   });
 
+  it("escapes an untrusted GitHub login in the invite page", async () => {
+    vi.mocked(repo.findMemberByGithubId).mockResolvedValue(undefined as never);
+    exchange.mockResolvedValueOnce({ githubId: 42, login: "<img src=x onerror=alert(1)>", avatarUrl: "https://a/x.png" });
+    const res = await app().request("/auth/github/callback?code=abc&state=st4te", { headers: { cookie: stateCookie } });
+    expect(res.status).toBe(200);
+    const body = await res.text();
+    expect(body).not.toContain("<img");
+    expect(body).toContain("&lt;img");
+  });
+
   it("creates the member and burns the invite when the code is valid", async () => {
     vi.mocked(repo.findMemberByGithubId).mockResolvedValue(undefined as never);
     vi.mocked(repo.inviteIsUnused).mockResolvedValue(true);

@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { clearSessionCookieHeader, sessionCookieHeader, signSession, SESSION_COOKIE, verifySession } from "../auth/cookie.js";
 import { exchangeGithubCode, githubAuthorizeUrl } from "../auth/github.js";
 import * as repo from "../db/repo.js";
+import { escapeHtml } from "../html.js";
 
 export interface AuthDeps {
   config: { GITHUB_CLIENT_ID: string; GITHUB_CLIENT_SECRET: string; COOKIE_SECRET: string; PUBLIC_URL: string; isProd: boolean };
@@ -34,9 +35,12 @@ export function authRoutes({ config, exchange = exchangeGithubCode }: AuthDeps) 
 
     if (!member) {
       if (!invite) {
-        const action = `/auth/github/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`;
+        const action = escapeHtml(`/auth/github/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`);
         return c.html(
-          page("Kaya — invite", `<form method="get" action="${action}"><h1>Welcome, ${user.login}</h1><p>Kaya is invite only. Paste your invite code.</p><input name="invite" placeholder="Invite code" autocapitalize="characters" autocomplete="off"><input type="hidden" name="code" value="${code}"><input type="hidden" name="state" value="${state}"><button>Join</button></form>`),
+          page(
+            "Kaya — invite",
+            `<form method="get" action="${action}"><h1>Welcome, ${escapeHtml(user.login)}</h1><p>Kaya is invite only. Paste your invite code.</p><input name="invite" placeholder="Invite code" autocapitalize="characters" autocomplete="off"><input type="hidden" name="code" value="${escapeHtml(code)}"><input type="hidden" name="state" value="${escapeHtml(state)}"><button>Join</button></form>`,
+          ),
         );
       }
       const clean = String(invite).trim().toUpperCase();
