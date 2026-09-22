@@ -14,8 +14,9 @@ const NO_RUNNER = "Your runner isn't connected. Start kaya-runner on your machin
  */
 export class Session {
   private conversation: { id: string; runnerId: string | null; agentSessionId: string | null } | null = null;
-  private turn: { turnId: string; cancel(): void; answerPermission(id: string, allow: boolean): void; abort: AbortController } | null = null;
+  private turn: { turnId: string; cancel(): void; answerPermission(id: string, allow: boolean): void; abort: AbortController; finish: () => void } | null = null;
   private unsubscribeStatus: (() => void) | null = null;
+  private closed = false;
 
   constructor(
     private readonly ws: WSContext,
@@ -69,9 +70,14 @@ export class Session {
   }
 
   private cancelTurn() {
-    this.turn?.cancel();
-    this.turn?.abort.abort();
+    const turn = this.turn;
     this.turn = null;
+    if (!turn) return;
+    turn.cancel();
+    turn.abort.abort();
+    // Release the completion chain: the phone is still waiting for the
+    // speak_end that ends this turn's audio.
+    turn.finish();
   }
 
   private async userText(text: string) {
@@ -177,16 +183,17 @@ export class Session {
       this.send({ type: "speak_end" });
       return;
     }
-    this.turn = { ...handle, abort };
+    this.turn = { ...handle, abort, finish: () => resolveFinish() };
 
     void finish.then(async () => {
       await Promise.allSettled(ttsQueue);
-      if (!abort.signal.aborted) this.send({ type: "speak_end" });
+      if (!this.closed) this.send({ type: "speak_end" });
       if (this.turn?.abort === abort) this.turn = null;
     });
   }
 
   close() {
+    this.closed = true;
     this.cancelTurn();
     this.unsubscribeStatus?.();
   }

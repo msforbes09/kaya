@@ -74,12 +74,23 @@ describe("RunnerHub", () => {
     expect(seen).toEqual([true, true]);
   });
 
-  it("cancel sends cancel to the runner", () => {
+  it("cancel sends cancel to the runner and forgets the turn's handlers", async () => {
     const hub = new RunnerHub(memory, () => "turn-1");
     const l = link();
     hub.attach("m1", "r1", "mac", l);
-    hub.startTurn("m1", { conversationId: "c1", text: "hi" }, handlers())!.cancel();
+    const h = handlers();
+    hub.startTurn("m1", { conversationId: "c1", text: "hi" }, h)!.cancel();
     expect(JSON.parse(l.sent[1])).toEqual({ type: "cancel", turnId: "turn-1" });
+
+    // Late traffic for a cancelled turn must not reach the handlers.
+    await hub.handleMessage("m1", JSON.stringify({ type: "text_delta", turnId: "turn-1", text: "late" }));
+    await hub.handleMessage("m1", JSON.stringify({ type: "turn_done", turnId: "turn-1", sessionId: "s1", fullText: "late" }));
+    expect(h.onDelta).not.toHaveBeenCalled();
+    expect(h.onDone).not.toHaveBeenCalled();
+
+    // The turn is gone, so a disconnect has nothing left to fail either.
+    hub.detach("m1", l);
+    expect(h.onError).not.toHaveBeenCalled();
   });
 
   it("sends memory_result to the current runner even if it was replaced while the memory call was in flight", async () => {

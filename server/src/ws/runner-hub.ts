@@ -80,7 +80,12 @@ export class RunnerHub {
     this.push(cur, { type: "turn_start", turnId, conversationId: turn.conversationId, text: turn.text, resumeSessionId: turn.resumeSessionId ?? null });
     return {
       turnId,
-      cancel: () => this.push(cur, { type: "cancel", turnId }),
+      // Drop the handlers first: the runner may still be mid-turn, and nothing
+      // it sends for this id afterwards belongs to the caller any more.
+      cancel: () => {
+        cur.turns.delete(turnId);
+        this.push(cur, { type: "cancel", turnId });
+      },
       answerPermission: (id: string, allow: boolean) => this.push(cur, { type: "permission_response", id, allow }),
     };
   }

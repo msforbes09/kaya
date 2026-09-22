@@ -27,6 +27,30 @@ describe("executeTurn", () => {
     ]);
   });
 
+  it("closes the agent event stream when the turn is aborted", async () => {
+    let closed = 0;
+    let delivered = 0;
+    const events = {
+      [Symbol.asyncIterator]() { return this; },
+      async next() { delivered++; return { value: { type: "text_delta" as const, text: "Hi" }, done: false }; },
+      async return(value?: unknown) { closed++; return { value, done: true as const }; },
+    };
+    const send = vi.fn();
+    const broker = new PermissionBroker(send, () => "t1", () => "p1");
+    const t = executeTurn({
+      turn: { turnId: "t1", conversationId: "c1", text: "hello" },
+      workspace: "/w",
+      mcpServer: {} as never,
+      send,
+      permissions: broker,
+      runAgent: () => events as never,
+    });
+    t.abort();
+    await t.done;
+    expect(closed).toBe(1);
+    expect(delivered).toBeLessThan(3);
+  });
+
   it("permission broker sends a request and resolves on the answer", async () => {
     const send = vi.fn();
     const broker = new PermissionBroker(send, () => "t1", () => "p1");

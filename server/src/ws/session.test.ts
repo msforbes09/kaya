@@ -128,6 +128,22 @@ describe("Session", () => {
     expect(repo.addMessage).not.toHaveBeenCalledWith("c1", "assistant", "Hello there.", { costUsd: 0.1 });
   });
 
+  it("closes out a cancelled turn with speak_end and nothing else", async () => {
+    const hub = new RunnerHub(memory, () => "turn-1");
+    const link = runnerLink();
+    hub.attach("m1", "r1", "mac", link);
+    const { ws, json } = fakeWs();
+    const s = new Session(ws, "m1", hub, speaker);
+    await s.handle(JSON.stringify({ type: "hello" }));
+    await s.handle(JSON.stringify({ type: "user_text", text: "hi" }));
+
+    await s.handle(JSON.stringify({ type: "cancel" }));
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(json().at(-1)).toEqual({ type: "speak_end" });
+    expect(json().filter((m) => m.type === "assistant_done")).toEqual([]);
+  });
+
   it("logs instead of rejecting when storing a tool message fails", async () => {
     vi.mocked(repo.addMessage).mockImplementation(async (_conversationId, role) => {
       if (role === "tool") throw new Error("db down");
