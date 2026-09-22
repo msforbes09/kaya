@@ -72,6 +72,16 @@ export function authRoutes({ config, exchange = exchangeGithubCode }: AuthDeps) 
     const pending = verifyPending(getCookie(c, PENDING_COOKIE), config.COOKIE_SECRET);
     if (!pending) return c.html(page("Kaya — invite", `<main><h1>Sign-in expired</h1><p><a href="/auth/github">Start again</a></p></main>`), 400);
 
+    const signIn = (memberId: string) => {
+      c.header("Set-Cookie", sessionCookieHeader(signSession(memberId, config.COOKIE_SECRET), config.isProd), { append: true });
+      c.header("Set-Cookie", clearPendingCookieHeader(), { append: true });
+      return c.redirect("/");
+    };
+
+    // A resubmit inside the pending window must not hit the unique github_id.
+    const already = await repo.findMemberByGithubId(pending.githubId);
+    if (already) return signIn(already.id);
+
     const form = await c.req.parseBody();
     const clean = String(form.invite ?? "").trim().toUpperCase();
 
@@ -80,13 +90,13 @@ export function authRoutes({ config, exchange = exchangeGithubCode }: AuthDeps) 
     // to exist first to be recorded as the redeemer, so undo it if we lost.
     const member = await repo.createMember({ githubId: pending.githubId, login: pending.login, avatarUrl: pending.avatarUrl });
     if (!(await repo.redeemInvite(clean, member.id))) {
-      await repo.deleteMember(member.id);
+      // The sign-in is refused either way; a member left behind is a cleanup
+      // job, not a reason to hand out a session.
+      await repo.deleteMember(member.id).catch(() => console.error("invite cleanup failed"));
       return c.html(page("Kaya — invite", `<main><h1>Invite not valid</h1><p>That code is unknown or already used. Ask for a new one.</p></main>`), 403);
     }
 
-    c.header("Set-Cookie", sessionCookieHeader(signSession(member.id, config.COOKIE_SECRET), config.isProd), { append: true });
-    c.header("Set-Cookie", clearPendingCookieHeader(), { append: true });
-    return c.redirect("/");
+    return signIn(member.id);
   });
 
   app.post("/auth/logout", (c) => {

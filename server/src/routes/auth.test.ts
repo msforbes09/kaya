@@ -71,6 +71,7 @@ describe("auth routes", () => {
   });
 
   it("POST /auth/invite creates the member and burns the invite when the pending cookie and code are valid", async () => {
+    vi.mocked(repo.findMemberByGithubId).mockResolvedValue(undefined as never);
     vi.mocked(repo.createMember).mockResolvedValue({ id: "m9" } as never);
     vi.mocked(repo.redeemInvite).mockResolvedValue(true);
     const res = await app().request("/auth/invite", { method: "POST", body: "invite=abcdefghjklm", headers: { "content-type": "application/x-www-form-urlencoded", cookie: pendingCookie() } });
@@ -84,12 +85,37 @@ describe("auth routes", () => {
   });
 
   it("POST /auth/invite rejects a used or unknown invite and undoes the member it created", async () => {
+    vi.mocked(repo.findMemberByGithubId).mockResolvedValue(undefined as never);
     vi.mocked(repo.createMember).mockResolvedValue({ id: "m9" } as never);
     vi.mocked(repo.redeemInvite).mockResolvedValue(false);
+    vi.mocked(repo.deleteMember).mockResolvedValue(undefined);
     const res = await app().request("/auth/invite", { method: "POST", body: "invite=NOPE", headers: { "content-type": "application/x-www-form-urlencoded", cookie: pendingCookie() } });
     expect(res.status).toBe(403);
     expect(repo.deleteMember).toHaveBeenCalledWith("m9");
     expect(res.headers.get("set-cookie") ?? "").not.toContain("kaya_session=");
+  });
+
+  it("POST /auth/invite signs in a member that already exists instead of creating them twice", async () => {
+    vi.mocked(repo.findMemberByGithubId).mockResolvedValue({ id: "m9", githubId: 42 } as never);
+    const res = await app().request("/auth/invite", { method: "POST", body: "invite=ABCDEFGHJKLM", headers: { "content-type": "application/x-www-form-urlencoded", cookie: pendingCookie() } });
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("/");
+    expect(repo.createMember).not.toHaveBeenCalled();
+    expect(repo.redeemInvite).not.toHaveBeenCalled();
+    expect(res.headers.get("set-cookie")).toContain("kaya_session=");
+  });
+
+  it("POST /auth/invite still refuses the sign-in when undoing the member fails", async () => {
+    vi.mocked(repo.findMemberByGithubId).mockResolvedValue(undefined as never);
+    vi.mocked(repo.createMember).mockResolvedValue({ id: "m9" } as never);
+    vi.mocked(repo.redeemInvite).mockResolvedValue(false);
+    vi.mocked(repo.deleteMember).mockRejectedValue(new Error("db down"));
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    const res = await app().request("/auth/invite", { method: "POST", body: "invite=NOPE", headers: { "content-type": "application/x-www-form-urlencoded", cookie: pendingCookie() } });
+    expect(res.status).toBe(403);
+    expect(res.headers.get("set-cookie") ?? "").not.toContain("kaya_session=");
+    expect(errors).toHaveBeenCalledWith("invite cleanup failed");
+    errors.mockRestore();
   });
 
   it("POST /auth/invite needs a live pending cookie", async () => {

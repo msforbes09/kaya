@@ -99,6 +99,17 @@ describe("pairing routes", () => {
     expect((await a.request("/api/pair/describe?code=000000", { headers: { cookie } })).status).toBe(404);
   });
 
+  it("describe spends an attempt even when the code is live, so codes can't be enumerated for free", async () => {
+    const a = app();
+    vi.mocked(repo.getPairingCode).mockResolvedValue({ code: "123456", runnerPublicId: "p1", memberId: null, expiresAt: new Date(1_600_000) } as never);
+    for (let i = 0; i < 10; i++) expect((await a.request(`/api/pair/describe?code=10000${i}`, { headers: { cookie } })).status).toBe(200);
+
+    const blockedDescribe = await a.request("/api/pair/describe?code=123456", { headers: { cookie } });
+    expect(blockedDescribe.status).toBe(429);
+    expect(await blockedDescribe.json()).toEqual({ error: "too many attempts" });
+    expect((await confirm(a, "123456")).status).toBe(429);
+  });
+
   it("confirm requires a session and a live code", async () => {
     expect((await app().request("/api/pair/confirm", { method: "POST", body: JSON.stringify({ code: "123456" }), headers: { "content-type": "application/json" } })).status).toBe(401);
     vi.mocked(repo.getPairingCode).mockResolvedValueOnce(undefined as never);

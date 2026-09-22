@@ -78,16 +78,16 @@ export function pairingRoutes({ secret, publicUrl, now = Date.now }: PairingDeps
   });
 
   app.get("/api/pair/describe", async (c) => {
-    const memberId = verifySession(getCookie(c, SESSION_COOKIE), secret, now());
+    const nowMs = now();
+    const memberId = verifySession(getCookie(c, SESSION_COOKIE), secret, nowMs);
     if (!memberId) return c.json({ error: "unauthorized" }, 401);
+    // Every lookup costs an attempt, hit or miss, and out of the same budget as
+    // confirm: otherwise this endpoint is a free oracle for live codes.
+    if (!spendAttempt(memberId, nowMs)) return c.json({ error: "too many attempts" }, 429);
+
     const code = String(c.req.query("code") ?? "").trim();
     const row = await repo.getPairingCode(code);
-    // Only a lookup that missed costs the member an attempt, so the pair page
-    // can't be used as a free oracle for live codes.
-    if (!row || pairingExpired(row.expiresAt, now())) {
-      if (!spendAttempt(memberId, now())) return c.json({ error: "too many attempts" }, 429);
-      return c.json({ error: "unknown code" }, 404);
-    }
+    if (!row || pairingExpired(row.expiresAt, nowMs)) return c.json({ error: "unknown code" }, 404);
     return c.json({ name: pendingMeta.get(row.runnerPublicId)?.name ?? "runner" });
   });
 
