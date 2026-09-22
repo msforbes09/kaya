@@ -33,7 +33,7 @@ Postgres: `docker run -d --name kaya-pg -e POSTGRES_USER=kaya -e POSTGRES_PASSWO
 
 ## Decided, do not relitigate (see `docs/decisions/`)
 
-Hono over Next. ElevenLabs for STT and TTS. Postgres + pgvector. Sentence-chunked TTS with sequence-numbered frames. Permission tiers in `server/src/agent/permissions.ts`; destructive Bash asks the human over the socket.
+Hono over Next. ElevenLabs for STT and TTS. Postgres + pgvector. Sentence-chunked TTS with sequence-numbered frames. Permission tiers in `runner/src/agent/permissions.ts`; destructive Bash asks the human over the socket.
 
 ## Token discipline
 
