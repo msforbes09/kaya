@@ -12,18 +12,18 @@ export interface PermissionPrompt {
 
 export type Status = "offline" | "connecting" | "idle" | "thinking" | "speaking";
 
-export function useKaya(token: string | null) {
+export function useKaya() {
   const [status, setStatus] = useState<Status>("offline");
   const [transcript, setTranscript] = useState(emptyTranscript);
   const [permission, setPermission] = useState<PermissionPrompt | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [runner, setRunner] = useState<{ online: boolean; name?: string }>({ online: false });
   const ws = useRef<WebSocket | null>(null);
   const audio = useRef(new AudioQueue());
 
   useEffect(() => {
-    if (!token) return;
     const proto = location.protocol === "https:" ? "wss" : "ws";
-    const socket = new WebSocket(`${proto}://${location.host}/ws?token=${encodeURIComponent(token)}`);
+    const socket = new WebSocket(`${proto}://${location.host}/ws`);
     socket.binaryType = "arraybuffer";
     ws.current = socket;
     setStatus("connecting");
@@ -36,7 +36,7 @@ export function useKaya(token: string | null) {
     };
     socket.onclose = (e) => {
       setStatus("offline");
-      if (e.code === 4401) setError("Token rejected. Check it in settings.");
+      if (e.code === 4401) setError("Signed out. Reload to sign in again.");
     };
     socket.onmessage = (evt) => {
       if (evt.data instanceof ArrayBuffer) {
@@ -63,6 +63,9 @@ export function useKaya(token: string | null) {
         case "permission_request":
           setPermission({ id: msg.id, question: msg.question, detail: msg.detail });
           break;
+        case "runner_status":
+          setRunner({ online: msg.online, name: msg.name });
+          break;
         case "speak_end":
           break;
         case "error":
@@ -72,7 +75,7 @@ export function useKaya(token: string | null) {
       }
     };
     return () => socket.close();
-  }, [token]);
+  }, []);
 
   const say = useCallback((text: string) => {
     audio.current.reset();
@@ -99,5 +102,5 @@ export function useKaya(token: string | null) {
   const unlockAudio = useCallback(() => audio.current.unlock(), []);
 
   const lines = transcript.lines;
-  return { status, lines, permission, error, say, answerPermission, cancel, newConversation, unlockAudio };
+  return { status, lines, permission, error, runner, say, answerPermission, cancel, newConversation, unlockAudio };
 }

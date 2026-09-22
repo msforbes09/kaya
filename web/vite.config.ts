@@ -30,6 +30,9 @@ export default defineConfig({
     proxy: {
       "/api": "http://localhost:8787",
       "/ws": { target: "ws://localhost:8787", ws: true },
+      "/auth": "http://localhost:8787",
+      "/pair": "http://localhost:8787",
+      "/runner": { target: "ws://localhost:8787", ws: true },
     },
   },
 });

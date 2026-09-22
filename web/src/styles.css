@@ -76,6 +76,8 @@ header .status { color: var(--muted); font-size: 14px; }
 @keyframes blink { to { opacity: 0; } }
 
 .banner { margin: 0 16px 8px; padding: 10px 12px; border-radius: 10px; background: #3a2a27; color: #f1c8bf; font-size: 14px; }
+.button { display: inline-block; text-decoration: none; text-align: center; }
+.banner.runner { background: #2b2a1f; }
 
 .permission {
   margin: 0 16px 10px; padding: 14px; border-radius: 12px;
