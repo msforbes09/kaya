@@ -62,6 +62,43 @@ describe("pairing routes", () => {
     expect(await (await app().request("/api/pair/poll?publicId=p")).json()).toEqual({ status: "expired" });
   });
 
+  const confirm = (a: ReturnType<typeof app>, code: string) =>
+    a.request("/api/pair/confirm", { method: "POST", body: JSON.stringify({ code }), headers: { "content-type": "application/json", cookie } });
+
+  it("confirm stops a member after 10 attempts in 10 minutes", async () => {
+    const a = app();
+    vi.mocked(repo.getPairingCode).mockResolvedValue(undefined as never);
+    for (let i = 0; i < 10; i++) expect((await confirm(a, `10000${i}`)).status).toBe(404);
+    const blocked = await confirm(a, "999999");
+    expect(blocked.status).toBe(429);
+    expect(await blocked.json()).toEqual({ error: "too many attempts" });
+  });
+
+  it("confirm burns a code that has been guessed at 5 times", async () => {
+    const a = app();
+    vi.mocked(repo.getPairingCode).mockResolvedValue({ code: "123456", memberId: null, expiresAt: new Date(1_600_000) } as never);
+    vi.mocked(repo.confirmPairingCode).mockResolvedValue(false);
+    for (let i = 0; i < 5; i++) expect((await confirm(a, "123456")).status).toBe(409);
+    expect(repo.deletePairingCode).not.toHaveBeenCalled();
+    const sixth = await confirm(a, "123456");
+    expect(sixth.status).toBe(410);
+    expect(repo.deletePairingCode).toHaveBeenCalledWith("123456");
+  });
+
+  it("describe names the runner behind a live code, for signed-in members only", async () => {
+    const a = app();
+    const start = await (await a.request("/api/pair/start", { method: "POST", body: JSON.stringify({ name: "mac", workspace: "/w" }), headers: { "content-type": "application/json" } })).json();
+
+    expect((await a.request(`/api/pair/describe?code=${start.code}`)).status).toBe(401);
+
+    vi.mocked(repo.getPairingCode).mockResolvedValueOnce({ code: start.code, runnerPublicId: start.publicId, memberId: null, expiresAt: new Date(1_600_000) } as never);
+    const res = await a.request(`/api/pair/describe?code=${start.code}`, { headers: { cookie } });
+    expect(await res.json()).toEqual({ name: "mac" });
+
+    vi.mocked(repo.getPairingCode).mockResolvedValueOnce(undefined as never);
+    expect((await a.request("/api/pair/describe?code=000000", { headers: { cookie } })).status).toBe(404);
+  });
+
   it("confirm requires a session and a live code", async () => {
     expect((await app().request("/api/pair/confirm", { method: "POST", body: JSON.stringify({ code: "123456" }), headers: { "content-type": "application/json" } })).status).toBe(401);
     vi.mocked(repo.getPairingCode).mockResolvedValueOnce(undefined as never);

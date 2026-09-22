@@ -47,8 +47,11 @@ app.get("/pair", (c) => {
   const code = c.req.query("code") ?? "";
   return c.html(`<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pair runner</title>
 <style>body{font:16px system-ui;background:#141A26;color:#e6e9f0;display:grid;place-items:center;min-height:100vh;margin:0}main{max-width:360px;padding:24px}input,button{font:inherit;padding:12px;width:100%;box-sizing:border-box;margin-top:8px;border-radius:10px;border:1px solid #334}button{background:#e6e9f0;color:#141A26}</style>
-<main><h1>Pair a runner</h1><p>Enter the code shown by kaya-runner.</p><input id="code" value="${escapeHtml(code.replace(/[^0-9]/g, ""))}" inputmode="numeric" maxlength="6"><button id="go">Confirm</button><p id="out"></p>
-<script>document.getElementById('go').onclick=async()=>{const r=await fetch('/api/pair/confirm',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({code:document.getElementById('code').value})});document.getElementById('out').textContent=r.ok?'Paired. You can close this page.':'Code not valid: '+r.status;};</script></main>`);
+<main><h1>Pair a runner</h1><p>Enter the code shown by kaya-runner.</p><input id="code" value="${escapeHtml(code.replace(/[^0-9]/g, ""))}" inputmode="numeric" maxlength="6"><p id="who"></p><button id="go">Confirm</button><p id="out"></p>
+<script>const el=id=>document.getElementById(id);
+// textContent, never innerHTML: the runner names itself.
+(async()=>{const c=el('code').value;if(c.length!==6)return;const r=await fetch('/api/pair/describe?code='+encodeURIComponent(c));if(!r.ok)return;const d=await r.json();el('who').textContent='Pairing runner: '+d.name;})();
+el('go').onclick=async()=>{const r=await fetch('/api/pair/confirm',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({code:el('code').value})});el('out').textContent=r.ok?'Paired. You can close this page.':'Code not valid: '+r.status;};</script></main>`);
 });
 
 app.get(
