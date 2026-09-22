@@ -15,7 +15,7 @@ Voice-first personal dev assistant. Phone mic → ElevenLabs Scribe → `/ws` �
 ```bash
 npm install                # workspaces: server + web
 npm run typecheck          # both workspaces, errors only
-npm test                   # server vitest, dot reporter
+npm test                   # vitest in server and web, dot reporter
 npm run dev                # server on :8787, web on :5173
 npm run db:generate && npm run db:migrate
 ```
