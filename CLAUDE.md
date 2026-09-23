@@ -1,11 +1,12 @@
 # Kaya
 
-Voice-first personal dev assistant. Phone mic → ElevenLabs Scribe → `/ws` → Claude Agent SDK turn → sentence-chunked ElevenLabs TTS → MP3 frames back to the phone.
+Voice-first dev assistant for a small team. Phone mic → ElevenLabs Scribe → cloud `/ws` → the member's own runner (`/runner` socket) → Claude Agent SDK turn on their machine → sentence-chunked ElevenLabs TTS in the cloud → MP3 frames back to the phone.
 
 ## Layout
 
-- `server/` Hono + TypeScript. WebSocket session, Agent SDK runner, TTS, Postgres via Drizzle.
-- `web/` Vite + React PWA. Mic capture, audio playback, permission prompts.
+- `server/` Hono + TypeScript. GitHub sign-in + invites, phone and runner sockets, TTS, Postgres via Drizzle. Never runs the agent.
+- `runner/` npm package `kaya-runner`. Pairs by device code, runs Agent SDK turns in the member's workspace with their `claude` login.
+- `web/` Vite + React PWA. Mic capture, audio playback, permission prompts, model select.
 - `.claude/rules/` path-scoped conventions. They load only when you touch that path.
 - `.claude/sessions/` standing agreements (`RULES.md`) and dated session state. Read the newest dated file at session start.
 - `docs/decisions/` design decisions already made. `docs/superpowers/` specs and plans. `TODO.md` deferred work.
@@ -13,14 +14,17 @@ Voice-first personal dev assistant. Phone mic → ElevenLabs Scribe → `/ws` �
 ## Commands
 
 ```bash
-npm install                # workspaces: server + web
-npm run typecheck          # both workspaces, errors only
-npm test                   # vitest in server and web, dot reporter
-npm run dev                # server on :8787, web on :5173
+npm install                # workspaces: server, web, runner
+npm run typecheck          # all workspaces, errors only
+npm test                   # vitest in all workspaces, dot reporter
+npm run format:check       # Biome; the Edit/Write hook formats touched files
+npm run dev                # cloud on :8787, web on :5173 (never bind these from the agent)
+npm run dev:runner         # this machine's runner; pairs at /pair on first run
 npm run db:generate && npm run db:migrate
+npm run invite -w server -- --admin   # first invite; also forget, signout
 ```
 
-Postgres: `docker run -d --name kaya-pg -e POSTGRES_USER=kaya -e POSTGRES_PASSWORD=kaya -e POSTGRES_DB=kaya -p 5432:5432 pgvector/pgvector:pg17`, then `docker exec kaya-pg psql -U kaya -c 'CREATE EXTENSION IF NOT EXISTS vector;'`.
+Postgres with pgvector on the host (`CREATE EXTENSION IF NOT EXISTS vector;`), `DATABASE_URL` in `.env`.
 
 ## Hard rules
 
