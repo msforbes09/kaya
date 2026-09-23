@@ -26,3 +26,4 @@
 - Per-turn cost is about one dollar on Opus; harmless on a subscription login, but API-key members will pay it. Ties into "Model choice in runner".
 - Session recording: optionally save each conversation's MP3 frames and transcript to disk or the DB for replay while testing.
 - `Session` caches the conversation from `hello`; if that row is deleted (memory reset) the next turn fails on the messages FK until the page reloads. Recreate the conversation when the insert fails, and add a "forget everything" admin command so nobody has to run SQL.
+- The agent started `python -m http.server 5173` in the workspace and took Kaya's own web port after Vite exited; the runner then got 404s. Tell the agent in the prompt which ports are Kaya's, and have the runner log a clear line when the cloud URL answers with a non-WebSocket response.
