@@ -8,6 +8,8 @@ export const members = pgTable("members", {
   isAdmin: boolean("is_admin").default(false).notNull(),
   /** Bumped by `npm run signout`; cookies carry the epoch they were issued under. */
   sessionEpoch: integer("session_epoch").default(0).notNull(),
+  /** Claude model alias chosen in the app; null means the runner's own default. */
+  model: text("model"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 

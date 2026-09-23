@@ -22,6 +22,13 @@
       "when": 1790149430438,
       "tag": "0002_groovy_vance_astro",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790150969481,
+      "tag": "0003_swift_wiccan",
+      "breakpoints": true
     }
   ]
 }
