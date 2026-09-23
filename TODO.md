@@ -5,5 +5,19 @@
 - Embeddings column exists in the schema but is unused in v1.
 - SDK warns `CLAUDE_SDK_CAN_USE_TOOL_SHADOWED`: bare names in `allowedTools` bypass `canUseTool`. Intended for the read-only set, but decide whether to move gating to a PreToolUse hook so one path handles everything.
 - Server crashes on an unhandled DB error inside the WebSocket `onOpen` (seen when tables were missing). Catch it, send an `error` message, close the socket.
-- Token travels in the `/ws?token=` query string and the Hono logger prints it. Move to a first-message auth handshake and stop logging the URL.
 - Cost per turn is high (0.7–1.6 USD estimated for a one-line hello). The runner sets no `model`, so the SDK default (top model) is used, and every turn re-sends the Claude Code system prompt plus tool definitions. Set `model` in `runner.ts` (Sonnet or Haiku for chat turns), verify `resume` actually reuses the session, and check cache hits.
+- Publish `kaya-runner` to npm.
+- Multiple runners per member.
+- Hosted GitHub sandbox runner.
+- Phone auto-reconnect.
+- Mic pause while speaking.
+- Model choice in runner.
+- Runner reconnect: add jitter to the backoff and stop retrying on a 4401 close (revoked token) with a distinct log line.
+- Cookie revocation: sessions carry no epoch, so a deleted member keeps a live socket up to 30 days; add a member-level session version.
+- `server/src/ws/runner-socket.ts` has no test; add one asserting a bad bearer token closes with 4401.
+- `repo.upsertRunner` is delete-then-insert outside a transaction; wrap it.
+- `RunnerHub.onStatusChange` never prunes empty listener sets.
+- `POST /auth/logout` has no CSRF check (nuisance forced logout only).
+- Pairing rate-limit state is in-memory per process; fine for one container, revisit if the cloud is ever scaled out.
+- `speak_end` after a cancel can arrive after the next turn starts; the client ignores it today. Document it in the protocol if a client ever keys state off it.
+- `docs/superpowers/plans/2026-09-22-cloud-runner.md` still shows the superseded invite flow and `inviteIsUnused`; it is a historical plan.

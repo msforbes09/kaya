@@ -1,7 +1,6 @@
 import { query, type SDKMessage } from "@anthropic-ai/claude-agent-sdk";
-import { config } from "../config.js";
 import { KAYA_SYSTEM_PROMPT } from "./prompt.js";
-import { kayaMcpServer, KAYA_TOOL_NAMES } from "./tools.js";
+import { KAYA_TOOL_NAMES, createKayaMcpServer } from "./tools.js";
 import { AUTO_ALLOWED, buildCanUseTool, type PermissionAsk } from "./permissions.js";
 import { buildAgentEnv } from "./env.js";
 
@@ -23,7 +22,9 @@ export interface RunOptions {
  * Runs one turn of the agent and yields events as they happen.
  * Text arrives token by token via `text_delta`, which the caller feeds to TTS.
  */
-export async function* runAgentTurn(opts: RunOptions): AsyncGenerator<AgentEvent> {
+export async function* runAgentTurn(
+  opts: RunOptions & { workspace: string; mcpServer: ReturnType<typeof createKayaMcpServer> },
+): AsyncGenerator<AgentEvent> {
   const abort = new AbortController();
   opts.signal?.addEventListener("abort", () => abort.abort());
 
@@ -33,16 +34,16 @@ export async function* runAgentTurn(opts: RunOptions): AsyncGenerator<AgentEvent
   const stream = query({
     prompt: opts.prompt,
     options: {
-      cwd: config.KAYA_WORKSPACE,
+      cwd: opts.workspace,
       resume: opts.resumeSessionId ?? undefined,
-      systemPrompt: KAYA_SYSTEM_PROMPT,
+      systemPrompt: KAYA_SYSTEM_PROMPT(opts.workspace),
       includePartialMessages: true,
-      mcpServers: { kaya: kayaMcpServer },
+      mcpServers: { kaya: opts.mcpServer },
       allowedTools: [...AUTO_ALLOWED, ...KAYA_TOOL_NAMES],
       canUseTool: buildCanUseTool(opts.ask),
       abortController: abort,
       maxTurns: 40,
-      env: buildAgentEnv(process.env, config.ANTHROPIC_API_KEY),
+      env: buildAgentEnv(process.env, process.env.ANTHROPIC_API_KEY),
     },
   });
 

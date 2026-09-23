@@ -3,16 +3,18 @@
   "private": true,
   "workspaces": [
     "server",
-    "web"
+    "web",
+    "runner"
   ],
   "scripts": {
-    "dev": "concurrently -n server,web -c blue,magenta \"npm run dev -w server\" \"npm run dev -w web\"",
-    "build": "npm run build -w web && npm run build -w server",
+    "dev": "concurrently -n cloud,web -c blue,magenta \"npm run dev -w server\" \"npm run dev -w web\"",
+    "dev:runner": "npm run dev -w runner",
+    "build": "npm run build -w web && npm run build -w server && npm run build -w runner",
     "start": "npm run start -w server",
     "db:generate": "npm run db:generate -w server",
     "db:migrate": "npm run db:migrate -w server",
-    "typecheck": "npm run typecheck -w server && npm run typecheck -w web",
-    "test": "npm test -w server && npm test -w web"
+    "typecheck": "npm run typecheck -w server && npm run typecheck -w web && npm run typecheck -w runner",
+    "test": "npm test -w server && npm test -w web && npm test -w runner"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

@@ -1,37 +1,31 @@
 import { useEffect, useRef, useState } from "react";
 import { CommitStrategy, useScribe } from "@elevenlabs/react";
 import { useKaya } from "./useKaya";
+import { runnerBannerText } from "./runner-banner";
 
 export function App() {
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem("kaya:token"));
-  if (!token) return <TokenGate onSave={(t) => { localStorage.setItem("kaya:token", t); setToken(t); }} />;
-  return <Console token={token} onSignOut={() => { localStorage.removeItem("kaya:token"); setToken(null); }} />;
+  const [me, setMe] = useState<null | undefined | { login: string }>(undefined);
+  useEffect(() => {
+    fetch("/api/me").then(async (r) => setMe(r.ok ? await r.json() : null)).catch(() => setMe(null));
+  }, []);
+  if (me === undefined) return null;
+  if (me === null) return <SignIn />;
+  return <Console onSignOut={async () => { await fetch("/auth/logout", { method: "POST" }); location.reload(); }} />;
 }
 
-function TokenGate({ onSave }: { onSave: (t: string) => void }) {
-  const [value, setValue] = useState("");
+function SignIn() {
   return (
     <main className="gate">
       <img className="logo" src="/kaya.png" alt="" width={96} height={96} />
       <h1>Kaya</h1>
-      <p>Paste the access token from your server's .env to connect.</p>
-      <input
-        type="password"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        placeholder="KAYA_TOKEN"
-        autoCapitalize="off"
-        autoCorrect="off"
-      />
-      <button className="primary" disabled={value.length < 16} onClick={() => onSave(value.trim())}>
-        Connect
-      </button>
+      <p>Voice-first dev assistant for the team. Invite only.</p>
+      <a className="primary button" href="/auth/github">Sign in with GitHub</a>
     </main>
   );
 }
 
-function Console({ token, onSignOut }: { token: string; onSignOut: () => void }) {
-  const kaya = useKaya(token);
+function Console({ onSignOut }: { onSignOut: () => void }) {
+  const kaya = useKaya();
   const [typed, setTyped] = useState("");
   const [micError, setMicError] = useState<string | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
@@ -57,7 +51,7 @@ function Console({ token, onSignOut }: { token: string; onSignOut: () => void })
     kaya.unlockAudio();
     setMicError(null);
     try {
-      const res = await fetch("/api/scribe-token", { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch("/api/scribe-token");
       if (!res.ok) throw new Error("Could not get a transcription token");
       const { token: scribeToken } = await res.json();
       await scribe.connect({
@@ -88,6 +82,10 @@ function Console({ token, onSignOut }: { token: string; onSignOut: () => void })
         <button className="ghost" onClick={kaya.newConversation}>New chat</button>
         <button className="ghost" onClick={onSignOut}>Sign out</button>
       </header>
+
+      {runnerBannerText(kaya.runner) && (
+        <div className="banner runner">{runnerBannerText(kaya.runner)} <a href="/pair">Pair a runner</a></div>
+      )}
 
       <div className="log" ref={logRef}>
         {kaya.lines.length === 0 && (
