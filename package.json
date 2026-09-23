@@ -12,7 +12,7 @@
     "db:generate": "npm run db:generate -w server",
     "db:migrate": "npm run db:migrate -w server",
     "typecheck": "npm run typecheck -w server && npm run typecheck -w web",
-    "test": "npm test -w server"
+    "test": "npm test -w server && npm test -w web"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

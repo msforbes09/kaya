@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useScribe } from "@elevenlabs/react";
+import { CommitStrategy, useScribe } from "@elevenlabs/react";
 import { useKaya } from "./useKaya";
 
 export function App() {
@@ -12,6 +12,7 @@ function TokenGate({ onSave }: { onSave: (t: string) => void }) {
   const [value, setValue] = useState("");
   return (
     <main className="gate">
+      <img className="logo" src="/kaya.png" alt="" width={96} height={96} />
       <h1>Kaya</h1>
       <p>Paste the access token from your server's .env to connect.</p>
       <input
@@ -37,6 +38,10 @@ function Console({ token, onSignOut }: { token: string; onSignOut: () => void })
 
   const scribe = useScribe({
     modelId: "scribe_v2_realtime",
+    languageCode: "en",
+    // Commit on silence instead of the SDK default (manual), so a pause ends the utterance.
+    commitStrategy: CommitStrategy.VAD,
+    vadSilenceThresholdSecs: 1.0,
     onCommittedTranscript: (data) => {
       const text = data.text.trim();
       if (text) kaya.say(text);

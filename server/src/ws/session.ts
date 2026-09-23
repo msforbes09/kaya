@@ -32,6 +32,16 @@ export class Session {
       return this.send({ type: "error", message: "Malformed message" });
     }
 
+    try {
+      await this.dispatch(msg);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`session error handling ${msg.type}:`, err);
+      this.send({ type: "error", message });
+    }
+  }
+
+  private async dispatch(msg: ClientMessage) {
     switch (msg.type) {
       case "hello":
         return this.hello(msg.conversationId);

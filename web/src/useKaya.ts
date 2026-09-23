@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AudioQueue } from "./audio";
+import { applyTranscript, emptyTranscript, type Line } from "./transcript";
 
-export type Line =
-  | { id: number; who: "you" | "kaya"; text: string; live?: boolean }
-  | { id: number; who: "tool"; text: string };
+export type { Line };
 
 export interface PermissionPrompt {
   id: string;
@@ -13,16 +12,13 @@ export interface PermissionPrompt {
 
 export type Status = "offline" | "connecting" | "idle" | "thinking" | "speaking";
 
-let nextId = 1;
-
 export function useKaya(token: string | null) {
   const [status, setStatus] = useState<Status>("offline");
-  const [lines, setLines] = useState<Line[]>([]);
+  const [transcript, setTranscript] = useState(emptyTranscript);
   const [permission, setPermission] = useState<PermissionPrompt | null>(null);
   const [error, setError] = useState<string | null>(null);
   const ws = useRef<WebSocket | null>(null);
   const audio = useRef(new AudioQueue());
-  const liveId = useRef<number | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -57,26 +53,12 @@ export function useKaya(token: string | null) {
           setError(null);
           break;
         case "user_echo":
-          liveId.current = null;
-          setLines((l) => [...l, { id: nextId++, who: "you", text: msg.text }]);
-          setStatus("thinking");
-          break;
         case "assistant_delta":
-          setLines((l) => {
-            if (liveId.current === null) {
-              liveId.current = nextId++;
-              return [...l, { id: liveId.current, who: "kaya", text: msg.text, live: true }];
-            }
-            return l.map((x) => (x.id === liveId.current && x.who === "kaya" ? { ...x, text: x.text + msg.text } : x));
-          });
-          break;
         case "assistant_done":
-          setLines((l) => l.map((x) => (x.id === liveId.current && x.who === "kaya" ? { ...x, text: msg.text, live: false } : x)));
-          liveId.current = null;
-          setStatus((s) => (s === "speaking" ? s : "idle"));
-          break;
         case "tool":
-          setLines((l) => [...l, { id: nextId++, who: "tool", text: msg.summary }]);
+          setTranscript((t) => applyTranscript(t, msg));
+          if (msg.type === "user_echo") setStatus("thinking");
+          if (msg.type === "assistant_done") setStatus((s) => (s === "speaking" ? s : "idle"));
           break;
         case "permission_request":
           setPermission({ id: msg.id, question: msg.question, detail: msg.detail });
@@ -110,11 +92,12 @@ export function useKaya(token: string | null) {
 
   const newConversation = useCallback(() => {
     localStorage.removeItem("kaya:conversation");
-    setLines([]);
+    setTranscript(emptyTranscript);
     ws.current?.send(JSON.stringify({ type: "hello" }));
   }, []);
 
   const unlockAudio = useCallback(() => audio.current.unlock(), []);
 
+  const lines = transcript.lines;
   return { status, lines, permission, error, say, answerPermission, cancel, newConversation, unlockAudio };
 }
