@@ -3,7 +3,7 @@
 - Formatter not chosen yet. Add Prettier or Biome, then wire `.claude/hooks/format-on-save.sh` into `settings.json`.
 - Decide whether runtime Kaya should read the target repo's own `.claude/` folder instead of a hard-coded system prompt.
 - Embeddings column exists in the schema but is unused in v1.
-- Publish `kaya-runner` to npm.
+- `kaya-runner` is ready to publish (`npm publish -w runner --access public` after `npm login`); pick a license first.
 - Multiple runners per member.
 - Hosted GitHub sandbox runner.
 - Model choice per member from the UI (the runner reads `KAYA_MODEL` or its config file today).

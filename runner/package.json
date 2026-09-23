@@ -1,15 +1,37 @@
 {
   "name": "kaya-runner",
   "version": "0.1.0",
+  "description": "Kaya's local runner: runs Claude Agent SDK turns on your own machine for the Kaya voice assistant cloud.",
   "private": false,
   "type": "module",
-  "bin": { "kaya-runner": "dist/cli.js" },
-  "files": ["dist"],
+  "bin": {
+    "kaya-runner": "dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/msforbes09/kaya.git",
+    "directory": "runner"
+  },
+  "homepage": "https://github.com/msforbes09/kaya#readme",
+  "keywords": [
+    "kaya",
+    "claude",
+    "agent",
+    "voice",
+    "runner"
+  ],
   "scripts": {
     "dev": "tsx src/cli.ts",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit --pretty false",
-    "test": "vitest run --reporter=dot"
+    "test": "vitest run --reporter=dot",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.3.0",
