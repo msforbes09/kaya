@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AudioQueue } from "./audio";
+import { reconnectDelayMs, shouldReconnect } from "./reconnect";
 import { applyTranscript, emptyTranscript, type Line } from "./transcript";
 
 export type { Line };
@@ -22,21 +23,29 @@ export function useKaya() {
   const audio = useRef(new AudioQueue());
 
   useEffect(() => {
-    const proto = location.protocol === "https:" ? "wss" : "ws";
-    const socket = new WebSocket(`${proto}://${location.host}/ws`);
-    socket.binaryType = "arraybuffer";
-    ws.current = socket;
-    setStatus("connecting");
+    let deliberate = false;
+    let attempt = 0;
+    let timer: ReturnType<typeof setTimeout> | null = null;
 
     audio.current.onStateChange = (speaking) => setStatus((s) => (speaking ? "speaking" : s === "speaking" ? "idle" : s));
 
-    socket.onopen = () => {
-      const conversationId = localStorage.getItem("kaya:conversation") ?? undefined;
-      socket.send(JSON.stringify({ type: "hello", conversationId }));
+    const connect = () => {
+      const proto = location.protocol === "https:" ? "wss" : "ws";
+      const socket = new WebSocket(`${proto}://${location.host}/ws`);
+      socket.binaryType = "arraybuffer";
+      ws.current = socket;
+      setStatus("connecting");
+
+      socket.onopen = () => {
+        attempt = 0;
+        const conversationId = localStorage.getItem("kaya:conversation") ?? undefined;
+        socket.send(JSON.stringify({ type: "hello", conversationId }));
     };
     socket.onclose = (e) => {
       setStatus("offline");
       if (e.code === 4401) setError("Signed out. Reload to sign in again.");
+      // Phones drop sockets whenever the screen locks. Come back on our own.
+      if (shouldReconnect({ code: e.code, deliberate })) timer = setTimeout(connect, reconnectDelayMs(attempt++));
     };
     socket.onmessage = (evt) => {
       if (evt.data instanceof ArrayBuffer) {
@@ -74,7 +83,14 @@ export function useKaya() {
           break;
       }
     };
-    return () => socket.close();
+    };
+
+    connect();
+    return () => {
+      deliberate = true;
+      if (timer) clearTimeout(timer);
+      ws.current?.close();
+    };
   }, []);
 
   const say = useCallback((text: string) => {

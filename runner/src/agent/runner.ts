@@ -1,5 +1,6 @@
 import { query, type Options, type SDKMessage } from "@anthropic-ai/claude-agent-sdk";
-import { KAYA_SYSTEM_PROMPT } from "./prompt.js";
+import { KAYA_PORTS, KAYA_SYSTEM_PROMPT } from "./prompt.js";
+import { TextJoiner } from "./text-joiner.js";
 import { KAYA_TOOL_NAMES, createKayaMcpServer } from "./tools.js";
 import { AUTO_ALLOWED, buildCanUseTool, type PermissionAsk } from "./permissions.js";
 import { buildAgentEnv } from "./env.js";
@@ -16,6 +17,8 @@ export interface RunOptions {
   resumeSessionId?: string | null;
   /** Claude model alias or id. The SDK default is the top model, which costs about a dollar a turn. */
   model: string;
+  /** How the agent addresses the member. Empty when unknown. */
+  userName: string;
   ask: PermissionAsk;
   signal?: AbortSignal;
 }
@@ -30,7 +33,7 @@ export interface TurnUsage {
   resumed: boolean;
 }
 
-type QueryInputs = Pick<RunOptions, "resumeSessionId" | "model" | "ask"> & {
+type QueryInputs = Pick<RunOptions, "resumeSessionId" | "model" | "ask" | "userName"> & {
   workspace: string;
   mcpServer: ReturnType<typeof createKayaMcpServer>;
   abortController?: AbortController;
@@ -42,7 +45,7 @@ export function buildQueryOptions(o: QueryInputs): Options {
     cwd: o.workspace,
     model: o.model,
     resume: o.resumeSessionId ?? undefined,
-    systemPrompt: KAYA_SYSTEM_PROMPT(o.workspace),
+    systemPrompt: KAYA_SYSTEM_PROMPT(o.workspace, KAYA_PORTS, o.userName),
     includePartialMessages: true,
     mcpServers: { kaya: o.mcpServer },
     allowedTools: [...AUTO_ALLOWED, ...KAYA_TOOL_NAMES],
@@ -77,7 +80,7 @@ export async function* runAgentTurn(
   opts.signal?.addEventListener("abort", () => abort.abort());
 
   let sessionId = opts.resumeSessionId ?? "";
-  let fullText = "";
+  const joiner = new TextJoiner();
 
   const stream = query({
     prompt: opts.prompt,
@@ -92,9 +95,10 @@ export async function* runAgentTurn(
       switch (m.type) {
         case "stream_event": {
           const ev = m.event;
+          if (ev?.type === "content_block_start" && ev.content_block?.type === "text") joiner.blockStart();
           if (ev?.type === "content_block_delta" && ev.delta?.type === "text_delta") {
-            fullText += ev.delta.text;
-            yield { type: "text_delta", text: ev.delta.text };
+            const text = joiner.delta(ev.delta.text);
+            if (text) yield { type: "text_delta", text };
           }
           break;
         }
@@ -109,7 +113,7 @@ export async function* runAgentTurn(
           if (m.subtype !== "success" && m.is_error) {
             yield { type: "error", message: m.result ?? `Agent ended with ${m.subtype}` };
           }
-          yield { type: "done", sessionId, costUsd: m.total_cost_usd, fullText, usage: summarizeResult(m, opts.resumeSessionId) };
+          yield { type: "done", sessionId, costUsd: m.total_cost_usd, fullText: joiner.text, usage: summarizeResult(m, opts.resumeSessionId) };
           break;
         }
       }

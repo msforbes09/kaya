@@ -70,14 +70,14 @@ export class RunnerHub {
 
   startTurn(
     memberId: string,
-    turn: { conversationId: string; text: string; resumeSessionId?: string | null },
+    turn: { conversationId: string; text: string; resumeSessionId?: string | null; userName: string },
     handlers: TurnHandlers,
   ) {
     const cur = this.live.get(memberId);
     if (!cur) return null;
     const turnId = this.newId();
     cur.turns.set(turnId, handlers);
-    this.push(cur, { type: "turn_start", turnId, conversationId: turn.conversationId, text: turn.text, resumeSessionId: turn.resumeSessionId ?? null });
+    this.push(cur, { type: "turn_start", turnId, conversationId: turn.conversationId, text: turn.text, resumeSessionId: turn.resumeSessionId ?? null, userName: turn.userName });
     return {
       turnId,
       // Drop the handlers first: the runner may still be mid-turn, and nothing

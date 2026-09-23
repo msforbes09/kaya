@@ -18,6 +18,8 @@ export class Session {
   private turn: { turnId: string; cancel(): void; answerPermission(id: string, allow: boolean): void; abort: AbortController; finish: () => void } | null = null;
   private unsubscribeStatus: (() => void) | null = null;
   private closed = false;
+  /** GitHub login, sent with each turn so the agent greets the right person. */
+  private userName = "";
 
   constructor(
     private readonly ws: WSContext,
@@ -78,6 +80,7 @@ export class Session {
   }
 
   private async hello(existingId?: string) {
+    if (!this.userName) this.userName = (await repo.getMember(this.memberId))?.githubLogin ?? "";
     const existing = existingId ? await repo.getConversation(existingId, this.memberId) : null;
     const conv = existing ?? (await repo.createConversation(this.memberId));
     this.conversation = { id: conv.id, runnerId: conv.runnerId ?? null, agentSessionId: conv.agentSessionId ?? null };
@@ -152,7 +155,7 @@ export class Session {
 
     const handle = this.hub.startTurn(
       this.memberId,
-      { conversationId: conv.id, text: clean, resumeSessionId },
+      { conversationId: conv.id, text: clean, resumeSessionId, userName: this.userName },
       {
         onDelta: (t) => {
           if (abort.signal.aborted) return;

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { CommitStrategy, useScribe } from "@elevenlabs/react";
+import { shouldForwardTranscript } from "./mic-gate";
 import { useKaya } from "./useKaya";
 import { runnerBannerText } from "./runner-banner";
 
@@ -29,6 +30,9 @@ function Console({ onSignOut }: { onSignOut: () => void }) {
   const [typed, setTyped] = useState("");
   const [micError, setMicError] = useState<string | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
+  // The Scribe callback is created once; read the live status through a ref.
+  const statusRef = useRef(kaya.status);
+  statusRef.current = kaya.status;
 
   const scribe = useScribe({
     modelId: "scribe_v2_realtime",
@@ -38,7 +42,7 @@ function Console({ onSignOut }: { onSignOut: () => void }) {
     vadSilenceThresholdSecs: 1.0,
     onCommittedTranscript: (data) => {
       const text = data.text.trim();
-      if (text) kaya.say(text);
+      if (shouldForwardTranscript(statusRef.current, text)) kaya.say(text);
     },
     onError: (e: unknown) => setMicError(e instanceof Error ? e.message : "Microphone stream failed"),
   });

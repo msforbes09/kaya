@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../db/repo.js", () => ({
+  getMember: vi.fn(),
   getConversation: vi.fn(),
   createConversation: vi.fn(),
   addMessage: vi.fn(),
@@ -240,5 +241,17 @@ describe("Session", () => {
     expect(repo.addMessage).toHaveBeenCalledWith("c2", "user", "hi");
     expect(JSON.parse(link.sent[0])).toMatchObject({ type: "turn_start", conversationId: "c2", text: "hi" });
     expect(json().filter((m) => m.type === "error")).toEqual([]);
+  });
+
+  it("sends the member's GitHub login with every turn so the agent can greet them", async () => {
+    vi.mocked(repo.getMember).mockResolvedValue({ id: "m1", githubLogin: "arnel" } as never);
+    const hub = new RunnerHub(memory, () => "turn-1");
+    const link = runnerLink();
+    hub.attach("m1", "r1", "mac", link);
+    const { ws } = fakeWs();
+    const s = new Session(ws, "m1", hub, speaker);
+    await s.handle(JSON.stringify({ type: "hello" }));
+    await s.handle(JSON.stringify({ type: "user_text", text: "hi" }));
+    expect(JSON.parse(link.sent[0])).toMatchObject({ type: "turn_start", userName: "arnel" });
   });
 });
