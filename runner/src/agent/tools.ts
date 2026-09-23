@@ -32,8 +32,15 @@ export function createKayaMcpServer(bridge: MemoryBridge) {
         async (args) => ({ content: [{ type: "text", text: await bridge.call("recall", args) }] }),
         { annotations: { readOnlyHint: true, openWorldHint: false } },
       ),
+      tool(
+        "forget",
+        "Delete memories that match a keyword, when the developer says something is wrong or no longer true. Reports what was removed. Refuses sweeps that would remove more than ten.",
+        { query: z.string().min(2).describe("Keyword found in the memory's subject or content") },
+        async (args) => ({ content: [{ type: "text", text: await bridge.call("forget", args) }] }),
+        { annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false } },
+      ),
     ],
   });
 }
 
-export const KAYA_TOOL_NAMES = ["mcp__kaya__remember", "mcp__kaya__recall"];
+export const KAYA_TOOL_NAMES = ["mcp__kaya__remember", "mcp__kaya__recall", "mcp__kaya__forget"];

@@ -17,6 +17,7 @@ export interface TurnHandlers {
 export interface MemoryService {
   remember(memberId: string, args: Record<string, unknown>): Promise<string>;
   recall(memberId: string, args: Record<string, unknown>): Promise<string>;
+  forget(memberId: string, args: Record<string, unknown>): Promise<string>;
 }
 
 interface Live {
@@ -121,8 +122,7 @@ export class RunnerHub {
     if (!cur || !msg) return;
 
     if (msg.type === "memory_call") {
-      const result =
-        msg.tool === "remember" ? await this.memory.remember(memberId, msg.args) : await this.memory.recall(memberId, msg.args);
+      const result = await this.memory[msg.tool](memberId, msg.args);
       const fresh = this.live.get(memberId);
       if (fresh) {
         this.push(fresh, { type: "memory_result", callId: msg.callId, result });

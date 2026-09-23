@@ -27,7 +27,7 @@ app.use("*", async (c, next) => {
   console.log(`${c.req.method} ${c.req.path} ${c.res.status} ${Date.now() - start}ms`);
 });
 
-const hub = new RunnerHub(memoryServiceFor(repo));
+const hub = new RunnerHub(memoryServiceFor({ remember: repo.remember, recall: repo.recall, forget: repo.forgetMemories }));
 
 // A rejected promise anywhere must not take the cloud down: every member's
 // runner and phone socket live in this one process.

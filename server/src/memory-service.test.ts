@@ -4,6 +4,7 @@ import { memoryServiceFor } from "./memory-service.js";
 const repoLike = {
   remember: vi.fn(async () => ({ id: "mem-1" })),
   recall: vi.fn(async () => [{ kind: "fact", subject: "etravel", content: "runs on PHP" }]),
+  forget: vi.fn(async () => ({ removed: [{ kind: "preference", subject: "editor", content: "Neovim" }], matched: 1 })),
 };
 const service = () => memoryServiceFor(repoLike);
 
@@ -40,5 +41,24 @@ describe("memoryServiceFor", () => {
       expect(await service().recall("m1", args as Record<string, unknown>)).toBe("Invalid memory call.");
     }
     expect(repoLike.recall).not.toHaveBeenCalled();
+  });
+
+  it("forgets matching memories and says what went", async () => {
+    expect(await service().forget("m1", { query: "editor" })).toBe("Forgot 1 memory:\n[preference] editor: Neovim");
+    expect(repoLike.forget).toHaveBeenCalledWith("m1", "editor", 10);
+    repoLike.forget.mockResolvedValueOnce({ removed: [], matched: 0 });
+    expect(await service().forget("m1", { query: "editor" })).toBe("Nothing stored about that.");
+  });
+
+  it("refuses a forget that would match more than ten memories, without deleting", async () => {
+    repoLike.forget.mockResolvedValueOnce({ removed: [], matched: 42 });
+    const r = await service().forget("m1", { query: "et" });
+    expect(r).toMatch(/42 memories match/);
+    expect(r).toMatch(/more specific/i);
+  });
+
+  it("rejects invalid forget args without touching the repo", async () => {
+    expect(await service().forget("m1", { query: "" })).toBe("Invalid memory call.");
+    expect(repoLike.forget).not.toHaveBeenCalled();
   });
 });

@@ -18,7 +18,11 @@ const handlers = (): TurnHandlers & Record<string, ReturnType<typeof vi.fn>> => 
   onDone: vi.fn(),
   onError: vi.fn(),
 });
-const memory = { remember: vi.fn(async () => "Remembered (1)."), recall: vi.fn(async () => "Nothing stored about that.") };
+const memory = {
+  remember: vi.fn(async () => "Remembered (1)."),
+  recall: vi.fn(async () => "Nothing stored about that."),
+  forget: vi.fn(async () => "Forgot 1 memory."),
+};
 
 describe("RunnerHub", () => {
   it("returns null and reports offline when the member has no runner", () => {
@@ -71,6 +75,12 @@ describe("RunnerHub", () => {
     );
     expect(memory.recall).toHaveBeenCalledWith("m1", { query: "etravel" });
     expect(JSON.parse(l.sent[0])).toEqual({ type: "memory_result", callId: "c9", result: "Nothing stored about that." });
+    await hub.handleMessage(
+      "m1",
+      JSON.stringify({ type: "memory_call", turnId: "x", callId: "c10", tool: "forget", args: { query: "editor" } }),
+    );
+    expect(memory.forget).toHaveBeenCalledWith("m1", { query: "editor" });
+    expect(JSON.parse(l.sent[1])).toEqual({ type: "memory_result", callId: "c10", result: "Forgot 1 memory." });
   });
 
   it("fails pending turns and reports offline when the runner disconnects", () => {

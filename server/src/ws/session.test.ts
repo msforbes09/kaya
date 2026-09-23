@@ -24,7 +24,7 @@ const fakeWs = () => {
   return { sent, raw, ws, json: () => sent.map((s) => JSON.parse(s)) };
 };
 const speaker = { speak: vi.fn(async () => new Uint8Array([1, 2, 3])) };
-const memory = { remember: vi.fn(async () => ""), recall: vi.fn(async () => "") };
+const memory = { remember: vi.fn(async () => ""), recall: vi.fn(async () => ""), forget: vi.fn(async () => "") };
 const runnerLink = () => {
   const sent: string[] = [];
   return { sent, send: (d: string) => sent.push(d), close: () => {} };

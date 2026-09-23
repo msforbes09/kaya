@@ -151,3 +151,21 @@ export async function forgetAll(): Promise<number> {
     return rows.length;
   });
 }
+
+/**
+ * Forgets memories matching the query. Counts first and deletes only when the
+ * sweep is small enough, in one transaction, so "forget e" cannot empty the table.
+ */
+export async function forgetMemories(memberId: string, query: string, max: number) {
+  const like = `%${query}%`;
+  const where = and(eq(schema.memories.memberId, memberId), or(ilike(schema.memories.subject, like), ilike(schema.memories.content, like)));
+  return db.transaction(async (tx) => {
+    const matches = await tx.select({ id: schema.memories.id }).from(schema.memories).where(where);
+    if (matches.length === 0 || matches.length > max) return { removed: [], matched: matches.length };
+    const removed = await tx
+      .delete(schema.memories)
+      .where(where)
+      .returning({ kind: schema.memories.kind, subject: schema.memories.subject, content: schema.memories.content });
+    return { removed, matched: matches.length };
+  });
+}
