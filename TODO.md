@@ -21,3 +21,7 @@
 - Pairing rate-limit state is in-memory per process; fine for one container, revisit if the cloud is ever scaled out.
 - `speak_end` after a cancel can arrive after the next turn starts; the client ignores it today. Document it in the protocol if a client ever keys state off it.
 - `docs/superpowers/plans/2026-09-22-cloud-runner.md` still shows the superseded invite flow and `inviteIsUnused`; it is a historical plan.
+- `runner/src/agent/prompt.ts` hardcodes the user's name as "Blackbox"; pass the member's GitHub login (or a display name) with each turn and greet that.
+- Joined assistant text drops the space between spoken chunks ("...now.Done, Blackbox."). Fix in the chunker or the transcript reducer.
+- Per-turn cost is about one dollar on Opus; harmless on a subscription login, but API-key members will pay it. Ties into "Model choice in runner".
+- Session recording: optionally save each conversation's MP3 frames and transcript to disk or the DB for replay while testing.
