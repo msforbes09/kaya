@@ -112,4 +112,20 @@ describe("RunnerHub", () => {
     expect(a.sent).toEqual([]);
     expect(JSON.parse(b.sent[0])).toEqual({ type: "memory_result", callId: "c1", result: "Memory result" });
   });
+
+  it("refuses a second turn while one is live for the member, then accepts once it finishes", async () => {
+    let n = 0;
+    const hub = new RunnerHub(memory, () => `turn-${++n}`);
+    const l = link();
+    hub.attach("m1", "r1", "mac", l);
+    const first = hub.startTurn("m1", { conversationId: "c1", text: "one", userName: "" }, handlers());
+    expect(first).not.toBeNull();
+    expect(hub.startTurn("m1", { conversationId: "c2", text: "two", userName: "" }, handlers())).toBe("busy");
+    expect(l.sent.length).toBe(1);
+
+    await hub.handleMessage("m1", JSON.stringify({ type: "turn_done", turnId: "turn-1", sessionId: "s1", fullText: "ok" }));
+    const third = hub.startTurn("m1", { conversationId: "c2", text: "three", userName: "" }, handlers());
+    expect(third).not.toBe("busy");
+    expect(third).not.toBeNull();
+  });
 });

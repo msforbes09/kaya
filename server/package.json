@@ -11,7 +11,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit --pretty false",
     "test": "vitest run --reporter=dot",
     "invite": "tsx src/scripts/invite.ts",
-    "invite:prod": "node dist/scripts/invite.js"
+    "invite:prod": "node dist/scripts/invite.js",
+    "forget": "tsx src/scripts/forget.ts",
+    "forget:prod": "node dist/scripts/forget.js"
   },
   "dependencies": {
     "@elevenlabs/elevenlabs-js": "^2.0.0",

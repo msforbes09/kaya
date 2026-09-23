@@ -61,6 +61,11 @@ export class RunnerHub {
     return cur ? { online: true, name: cur.name, runnerId: cur.runnerId } : { online: false };
   }
 
+  /** True while the member's runner is executing a turn for any session. */
+  busy(memberId: string): boolean {
+    return (this.live.get(memberId)?.turns.size ?? 0) > 0;
+  }
+
   onStatusChange(memberId: string, cb: StatusListener): () => void {
     const set = this.listeners.get(memberId) ?? new Set();
     set.add(cb);
@@ -75,6 +80,9 @@ export class RunnerHub {
   ) {
     const cur = this.live.get(memberId);
     if (!cur) return null;
+    // A runner executes one turn at a time and aborts the previous on a new
+    // turn_start, so a second phone session must not be allowed to start one.
+    if (cur.turns.size > 0) return "busy";
     const turnId = this.newId();
     cur.turns.set(turnId, handlers);
     this.push(cur, { type: "turn_start", turnId, conversationId: turn.conversationId, text: turn.text, resumeSessionId: turn.resumeSessionId ?? null, userName: turn.userName });

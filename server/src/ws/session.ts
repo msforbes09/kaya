@@ -7,6 +7,7 @@ import * as repo from "../db/repo.js";
 
 const NO_RUNNER = "Your runner isn't connected. Start kaya-runner on your machine.";
 const QUEUED = "Queued. Kaya is still working on the last one.";
+const BUSY = "Your runner is busy with a turn from another session. Try again when it finishes.";
 
 /**
  * One phone socket = one live session for one member. Routes user text to the
@@ -144,6 +145,14 @@ export class Session {
       return;
     }
 
+    if (this.hub.busy(this.memberId)) {
+      this.send({ type: "status", text: BUSY });
+      speakSentence(BUSY);
+      await Promise.allSettled(ttsQueue);
+      this.send({ type: "speak_end" });
+      return;
+    }
+
     this.send({ type: "user_echo", text: clean });
     await this.storeUserMessage(conv, clean);
 
@@ -207,8 +216,8 @@ export class Session {
     // message loop on that: return once the turn is under way so cancel/
     // permission_response for THIS turn can still be handled while it runs.
     // Drain any queued TTS and close out the turn in the background instead.
-    if (!handle) {
-      this.send({ type: "status", text: NO_RUNNER });
+    if (!handle || handle === "busy") {
+      this.send({ type: "status", text: handle === "busy" ? BUSY : NO_RUNNER });
       await Promise.allSettled(ttsQueue);
       this.send({ type: "speak_end" });
       return;
