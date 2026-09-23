@@ -23,7 +23,9 @@ export const runners = pgTable(
   "runners",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    memberId: uuid("member_id").references(() => members.id, { onDelete: "cascade" }).notNull(),
+    memberId: uuid("member_id")
+      .references(() => members.id, { onDelete: "cascade" })
+      .notNull(),
     name: text("name").notNull(),
     tokenHash: text("token_hash").notNull().unique(),
     workspace: text("workspace").notNull(),
@@ -54,7 +56,9 @@ export const messages = pgTable(
   "messages",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    conversationId: uuid("conversation_id").references(() => conversations.id, { onDelete: "cascade" }).notNull(),
+    conversationId: uuid("conversation_id")
+      .references(() => conversations.id, { onDelete: "cascade" })
+      .notNull(),
     role: text("role", { enum: ["user", "assistant", "tool"] }).notNull(),
     content: text("content").notNull(),
     meta: jsonb("meta").$type<Record<string, unknown>>(),

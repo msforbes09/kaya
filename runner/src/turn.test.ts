@@ -10,10 +10,15 @@ async function* fakeAgent() {
 describe("executeTurn", () => {
   it("maps agent events to runner protocol messages", async () => {
     const send = vi.fn();
-    const broker = new PermissionBroker(send, () => "t1", () => "p1");
+    const broker = new PermissionBroker(
+      send,
+      () => "t1",
+      () => "p1",
+    );
     const t = executeTurn({
       turn: { turnId: "t1", conversationId: "c1", text: "hello" },
-      workspace: "/w", model: "sonnet",
+      workspace: "/w",
+      model: "sonnet",
       mcpServer: {} as never,
       send,
       permissions: broker,
@@ -31,15 +36,28 @@ describe("executeTurn", () => {
     let closed = 0;
     let delivered = 0;
     const events = {
-      [Symbol.asyncIterator]() { return this; },
-      async next() { delivered++; return { value: { type: "text_delta" as const, text: "Hi" }, done: false }; },
-      async return(value?: unknown) { closed++; return { value, done: true as const }; },
+      [Symbol.asyncIterator]() {
+        return this;
+      },
+      async next() {
+        delivered++;
+        return { value: { type: "text_delta" as const, text: "Hi" }, done: false };
+      },
+      async return(value?: unknown) {
+        closed++;
+        return { value, done: true as const };
+      },
     };
     const send = vi.fn();
-    const broker = new PermissionBroker(send, () => "t1", () => "p1");
+    const broker = new PermissionBroker(
+      send,
+      () => "t1",
+      () => "p1",
+    );
     const t = executeTurn({
       turn: { turnId: "t1", conversationId: "c1", text: "hello" },
-      workspace: "/w", model: "sonnet",
+      workspace: "/w",
+      model: "sonnet",
       mcpServer: {} as never,
       send,
       permissions: broker,
@@ -53,7 +71,11 @@ describe("executeTurn", () => {
 
   it("permission broker sends a request and resolves on the answer", async () => {
     const send = vi.fn();
-    const broker = new PermissionBroker(send, () => "t1", () => "p1");
+    const broker = new PermissionBroker(
+      send,
+      () => "t1",
+      () => "p1",
+    );
     const p = broker.ask("Run it?", "rm -rf x");
     expect(send).toHaveBeenCalledWith({ type: "permission_request", turnId: "t1", id: "p1", question: "Run it?", detail: "rm -rf x" });
     broker.answer("p1", true);
@@ -64,14 +86,29 @@ describe("executeTurn", () => {
 describe("executeTurn cost log", () => {
   it("logs one line per turn with cost, cache reads, and resume state", async () => {
     async function* agent() {
-      yield { type: "done" as const, sessionId: "s1", costUsd: 0.0123, fullText: "", usage: { costUsd: 0.0123, cacheReadTokens: 5000, cacheWriteTokens: 200, inputTokens: 10, outputTokens: 40, resumed: true } };
+      yield {
+        type: "done" as const,
+        sessionId: "s1",
+        costUsd: 0.0123,
+        fullText: "",
+        usage: { costUsd: 0.0123, cacheReadTokens: 5000, cacheWriteTokens: 200, inputTokens: 10, outputTokens: 40, resumed: true },
+      };
     }
     const send = vi.fn();
     const log = vi.fn();
-    const broker = new PermissionBroker(send, () => "t1", () => "p1");
+    const broker = new PermissionBroker(
+      send,
+      () => "t1",
+      () => "p1",
+    );
     await executeTurn({
       turn: { turnId: "t1", conversationId: "c1", text: "hello", resumeSessionId: "s1" },
-      workspace: "/w", model: "sonnet", mcpServer: {} as never, send, permissions: broker, log,
+      workspace: "/w",
+      model: "sonnet",
+      mcpServer: {} as never,
+      send,
+      permissions: broker,
+      log,
       runAgent: () => agent() as never,
     }).done;
     expect(log).toHaveBeenCalledTimes(1);

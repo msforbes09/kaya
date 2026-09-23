@@ -66,15 +66,11 @@ export function buildCanUseTool(ask: PermissionAsk): CanUseTool {
       const secret = touchesSecretFile(cmd);
       if (!destructive && !secret) return { behavior: "allow", updatedInput: input };
       const ok = await ask(secret ? "This command touches a secrets file. Run it?" : "This command looks destructive. Run it?", cmd);
-      return ok
-        ? { behavior: "allow", updatedInput: input }
-        : { behavior: "deny", message: "User declined the destructive command." };
+      return ok ? { behavior: "allow", updatedInput: input } : { behavior: "deny", message: "User declined the destructive command." };
     }
 
     // Unknown tool: ask.
     const ok = await ask(`Allow ${toolName}?`, JSON.stringify(input).slice(0, 400));
-    return ok
-      ? { behavior: "allow", updatedInput: input }
-      : { behavior: "deny", message: `User declined ${toolName}.` };
+    return ok ? { behavior: "allow", updatedInput: input } : { behavior: "deny", message: `User declined ${toolName}.` };
   };
 }

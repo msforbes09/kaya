@@ -13,7 +13,11 @@ export function runnerSocket(hub: RunnerHub, upgradeWebSocket: UpgradeWebSocket)
     const token = header.startsWith("Bearer ") ? header.slice(7) : "";
     const runner = token ? await repo.findRunnerByTokenHash(hashRunnerToken(token)) : undefined;
     if (!runner) {
-      return { onOpen(_evt, ws) { ws.close(4401, "unauthorized"); } };
+      return {
+        onOpen(_evt, ws) {
+          ws.close(4401, "unauthorized");
+        },
+      };
     }
     let link: RunnerLink | null = null;
     return {

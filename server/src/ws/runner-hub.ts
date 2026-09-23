@@ -85,7 +85,14 @@ export class RunnerHub {
     if (cur.turns.size > 0) return "busy";
     const turnId = this.newId();
     cur.turns.set(turnId, handlers);
-    this.push(cur, { type: "turn_start", turnId, conversationId: turn.conversationId, text: turn.text, resumeSessionId: turn.resumeSessionId ?? null, userName: turn.userName });
+    this.push(cur, {
+      type: "turn_start",
+      turnId,
+      conversationId: turn.conversationId,
+      text: turn.text,
+      resumeSessionId: turn.resumeSessionId ?? null,
+      userName: turn.userName,
+    });
     return {
       turnId,
       // Drop the handlers first: the runner may still be mid-turn, and nothing

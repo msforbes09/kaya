@@ -12,7 +12,13 @@ import * as repo from "../db/repo.js";
 import { signPending, signSession } from "../auth/cookie.js";
 import { authRoutes } from "./auth.js";
 
-const cfg = { GITHUB_CLIENT_ID: "cid", GITHUB_CLIENT_SECRET: "sec", COOKIE_SECRET: "0123456789abcdef0123456789abcdef", PUBLIC_URL: "http://localhost:5173", isProd: false };
+const cfg = {
+  GITHUB_CLIENT_ID: "cid",
+  GITHUB_CLIENT_SECRET: "sec",
+  COOKIE_SECRET: "0123456789abcdef0123456789abcdef",
+  PUBLIC_URL: "http://localhost:5173",
+  isProd: false,
+};
 const exchange = vi.fn(async () => ({ githubId: 42, login: "octo", avatarUrl: "https://a/x.png" }));
 const app = () => authRoutes({ config: cfg, exchange });
 const stateCookie = "kaya_oauth_state=st4te";
@@ -74,7 +80,11 @@ describe("auth routes", () => {
     vi.mocked(repo.findMemberByGithubId).mockResolvedValue(undefined as never);
     vi.mocked(repo.createMember).mockResolvedValue({ id: "m9" } as never);
     vi.mocked(repo.redeemInvite).mockResolvedValue(true);
-    const res = await app().request("/auth/invite", { method: "POST", body: "invite=abcdefghjklm", headers: { origin: "http://localhost:5173", "content-type": "application/x-www-form-urlencoded", cookie: pendingCookie() } });
+    const res = await app().request("/auth/invite", {
+      method: "POST",
+      body: "invite=abcdefghjklm",
+      headers: { origin: "http://localhost:5173", "content-type": "application/x-www-form-urlencoded", cookie: pendingCookie() },
+    });
     expect(res.status).toBe(302);
     expect(res.headers.get("location")).toBe("/");
     expect(repo.createMember).toHaveBeenCalledWith({ githubId: 42, login: "octo", avatarUrl: "https://a/x.png" });
@@ -89,7 +99,11 @@ describe("auth routes", () => {
     vi.mocked(repo.createMember).mockResolvedValue({ id: "m9" } as never);
     vi.mocked(repo.redeemInvite).mockResolvedValue(false);
     vi.mocked(repo.deleteMember).mockResolvedValue(undefined);
-    const res = await app().request("/auth/invite", { method: "POST", body: "invite=NOPE", headers: { origin: "http://localhost:5173", "content-type": "application/x-www-form-urlencoded", cookie: pendingCookie() } });
+    const res = await app().request("/auth/invite", {
+      method: "POST",
+      body: "invite=NOPE",
+      headers: { origin: "http://localhost:5173", "content-type": "application/x-www-form-urlencoded", cookie: pendingCookie() },
+    });
     expect(res.status).toBe(403);
     expect(repo.deleteMember).toHaveBeenCalledWith("m9");
     expect(res.headers.get("set-cookie") ?? "").not.toContain("kaya_session=");
@@ -97,7 +111,11 @@ describe("auth routes", () => {
 
   it("POST /auth/invite signs in a member that already exists instead of creating them twice", async () => {
     vi.mocked(repo.findMemberByGithubId).mockResolvedValue({ id: "m9", githubId: 42 } as never);
-    const res = await app().request("/auth/invite", { method: "POST", body: "invite=ABCDEFGHJKLM", headers: { origin: "http://localhost:5173", "content-type": "application/x-www-form-urlencoded", cookie: pendingCookie() } });
+    const res = await app().request("/auth/invite", {
+      method: "POST",
+      body: "invite=ABCDEFGHJKLM",
+      headers: { origin: "http://localhost:5173", "content-type": "application/x-www-form-urlencoded", cookie: pendingCookie() },
+    });
     expect(res.status).toBe(302);
     expect(res.headers.get("location")).toBe("/");
     expect(repo.createMember).not.toHaveBeenCalled();
@@ -111,7 +129,11 @@ describe("auth routes", () => {
     vi.mocked(repo.redeemInvite).mockResolvedValue(false);
     vi.mocked(repo.deleteMember).mockRejectedValue(new Error("db down"));
     const errors = vi.spyOn(console, "error").mockImplementation(() => {});
-    const res = await app().request("/auth/invite", { method: "POST", body: "invite=NOPE", headers: { origin: "http://localhost:5173", "content-type": "application/x-www-form-urlencoded", cookie: pendingCookie() } });
+    const res = await app().request("/auth/invite", {
+      method: "POST",
+      body: "invite=NOPE",
+      headers: { origin: "http://localhost:5173", "content-type": "application/x-www-form-urlencoded", cookie: pendingCookie() },
+    });
     expect(res.status).toBe(403);
     expect(res.headers.get("set-cookie") ?? "").not.toContain("kaya_session=");
     expect(errors).toHaveBeenCalledWith("invite cleanup failed");
@@ -119,9 +141,21 @@ describe("auth routes", () => {
   });
 
   it("POST /auth/invite needs a live pending cookie", async () => {
-    const missing = await app().request("/auth/invite", { method: "POST", body: "invite=ABCDEFGHJKLM", headers: { origin: "http://localhost:5173", "content-type": "application/x-www-form-urlencoded" } });
+    const missing = await app().request("/auth/invite", {
+      method: "POST",
+      body: "invite=ABCDEFGHJKLM",
+      headers: { origin: "http://localhost:5173", "content-type": "application/x-www-form-urlencoded" },
+    });
     expect(missing.status).toBe(400);
-    const expired = await app().request("/auth/invite", { method: "POST", body: "invite=ABCDEFGHJKLM", headers: { origin: "http://localhost:5173", "content-type": "application/x-www-form-urlencoded", cookie: pendingCookie(Date.now() - 300_001) } });
+    const expired = await app().request("/auth/invite", {
+      method: "POST",
+      body: "invite=ABCDEFGHJKLM",
+      headers: {
+        origin: "http://localhost:5173",
+        "content-type": "application/x-www-form-urlencoded",
+        cookie: pendingCookie(Date.now() - 300_001),
+      },
+    });
     expect(expired.status).toBe(400);
     expect(repo.createMember).not.toHaveBeenCalled();
   });
@@ -147,14 +181,20 @@ describe("auth routes", () => {
     const logout = await app().request("/auth/logout", { method: "POST", headers: { origin: "https://evil.example" } });
     expect(logout.status).toBe(403);
     expect(logout.headers.get("set-cookie")).toBeNull();
-    const invite = await app().request("/auth/invite", { method: "POST", body: "invite=ABCDEFGHJKLM", headers: { "content-type": "application/x-www-form-urlencoded", cookie: pendingCookie() } });
+    const invite = await app().request("/auth/invite", {
+      method: "POST",
+      body: "invite=ABCDEFGHJKLM",
+      headers: { "content-type": "application/x-www-form-urlencoded", cookie: pendingCookie() },
+    });
     expect(invite.status).toBe(403);
     expect(repo.createMember).not.toHaveBeenCalled();
   });
 
   it("GET /api/me refuses a cookie issued before a sign-out-everywhere", async () => {
     vi.mocked(repo.getMember).mockResolvedValue({ id: "m1", githubLogin: "octo", sessionEpoch: 1 } as never);
-    const res = await app().request("/api/me", { headers: { cookie: `kaya_session=${signSession("m1", cfg.COOKIE_SECRET, Date.now(), 0)}` } });
+    const res = await app().request("/api/me", {
+      headers: { cookie: `kaya_session=${signSession("m1", cfg.COOKIE_SECRET, Date.now(), 0)}` },
+    });
     expect(res.status).toBe(401);
   });
 });

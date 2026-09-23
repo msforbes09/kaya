@@ -1,6 +1,4 @@
-export type Line =
-  | { id: number; who: "you" | "kaya"; text: string; live?: boolean }
-  | { id: number; who: "tool"; text: string };
+export type Line = { id: number; who: "you" | "kaya"; text: string; live?: boolean } | { id: number; who: "tool"; text: string };
 
 /** Transcript state. Pure: React StrictMode may run an updater twice. */
 export interface TranscriptState {
@@ -36,7 +34,11 @@ export function applyTranscript(s: TranscriptState, msg: TranscriptMessage): Tra
       if (s.liveId === null) {
         return { lines: [...s.lines, { id: s.nextId, who: "kaya", text: m.text, live: false }], liveId: null, nextId: s.nextId + 1 };
       }
-      return { ...s, liveId: null, lines: s.lines.map((x) => (x.id === s.liveId && x.who === "kaya" ? { ...x, text: m.text, live: false } : x)) };
+      return {
+        ...s,
+        liveId: null,
+        lines: s.lines.map((x) => (x.id === s.liveId && x.who === "kaya" ? { ...x, text: m.text, live: false } : x)),
+      };
     }
     case "tool": {
       const m = msg as { summary: string };

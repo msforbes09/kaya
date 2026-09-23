@@ -8,7 +8,9 @@ const fakeSocket = () => {
     headers: {} as Record<string, string>,
     send: (d: string) => s.sent.push(d),
     close: vi.fn(),
-    on: (ev: string, cb: (...a: unknown[]) => void) => { handlers[ev] = cb; },
+    on: (ev: string, cb: (...a: unknown[]) => void) => {
+      handlers[ev] = cb;
+    },
     emit: (ev: string, ...a: unknown[]) => handlers[ev]?.(...a),
   };
   return s;
@@ -21,8 +23,16 @@ describe("RunnerClient", () => {
     const client = new RunnerClient(
       { cloudUrl: "https://k.example", token: "tok", workspace: "/w" },
       {
-        makeSocket: (url, headers) => { const s = fakeSocket(); s.headers = headers; sockets.push(s); expect(url).toBe("wss://k.example/runner"); return s; },
-        sleep: async (ms) => { sleeps.push(ms); },
+        makeSocket: (url, headers) => {
+          const s = fakeSocket();
+          s.headers = headers;
+          sockets.push(s);
+          expect(url).toBe("wss://k.example/runner");
+          return s;
+        },
+        sleep: async (ms) => {
+          sleeps.push(ms);
+        },
         log: () => {},
         random: () => 0.5,
         mcpServer: {} as never,
@@ -42,7 +52,16 @@ describe("RunnerClient", () => {
     const s = fakeSocket();
     const client = new RunnerClient(
       { cloudUrl: "https://k.example", token: "tok", workspace: "/w" },
-      { makeSocket: () => s, sleep: async () => {}, log: () => {}, mcpServer: {} as never, runAgent: () => (async function* () { await new Promise(() => {}); })() as never },
+      {
+        makeSocket: () => s,
+        sleep: async () => {},
+        log: () => {},
+        mcpServer: {} as never,
+        runAgent: () =>
+          (async function* () {
+            await new Promise(() => {});
+          })() as never,
+      },
     );
     client.start();
     s.emit("open");
@@ -61,7 +80,11 @@ describe("RunnerClient", () => {
     const client = new RunnerClient(
       { cloudUrl: "https://k.example", token: "tok", workspace: "/w" },
       {
-        makeSocket: () => { const s = fakeSocket(); sockets.push(s); return s; },
+        makeSocket: () => {
+          const s = fakeSocket();
+          sockets.push(s);
+          return s;
+        },
         sleep: async () => {},
         log: () => {},
         mcpServer: {} as never,
@@ -82,8 +105,17 @@ describe("RunnerClient", () => {
     const client = new RunnerClient(
       { cloudUrl: "https://k.example", token: "tok", workspace: "/w" },
       {
-        makeSocket: () => { const s = fakeSocket(); sockets.push(s); return s; },
-        sleep: (ms) => { sleeps.push(ms); return new Promise<void>((r) => { resolveSleep = r; }); },
+        makeSocket: () => {
+          const s = fakeSocket();
+          sockets.push(s);
+          return s;
+        },
+        sleep: (ms) => {
+          sleeps.push(ms);
+          return new Promise<void>((r) => {
+            resolveSleep = r;
+          });
+        },
         log: () => {},
         random: () => 0.5,
         mcpServer: {} as never,
@@ -111,7 +143,18 @@ describe("RunnerClient", () => {
     const lines: string[] = [];
     const client = new RunnerClient(
       { cloudUrl: "https://k.example", token: "tok", workspace: "/w" },
-      { makeSocket: () => { const s = fakeSocket(); sockets.push(s); return s; }, sleep: async (ms) => { sleeps.push(ms); }, log: (l) => lines.push(l), mcpServer: {} as never },
+      {
+        makeSocket: () => {
+          const s = fakeSocket();
+          sockets.push(s);
+          return s;
+        },
+        sleep: async (ms) => {
+          sleeps.push(ms);
+        },
+        log: (l) => lines.push(l),
+        mcpServer: {} as never,
+      },
     );
     client.start();
     sockets[0].emit("open");

@@ -40,49 +40,49 @@ export function useKaya() {
         attempt = 0;
         const conversationId = localStorage.getItem("kaya:conversation") ?? undefined;
         socket.send(JSON.stringify({ type: "hello", conversationId }));
-    };
-    socket.onclose = (e) => {
-      setStatus("offline");
-      if (e.code === 4401) setError("Signed out. Reload to sign in again.");
-      // Phones drop sockets whenever the screen locks. Come back on our own.
-      if (shouldReconnect({ code: e.code, deliberate })) timer = setTimeout(connect, reconnectDelayMs(attempt++));
-    };
-    socket.onmessage = (evt) => {
-      if (evt.data instanceof ArrayBuffer) {
-        const view = new DataView(evt.data);
-        const seq = view.getUint32(0);
-        audio.current.push(seq, new Blob([evt.data.slice(4)], { type: "audio/mpeg" }));
-        return;
-      }
-      const msg = JSON.parse(evt.data);
-      switch (msg.type) {
-        case "ready":
-          localStorage.setItem("kaya:conversation", msg.conversationId);
-          setStatus("idle");
-          setError(null);
-          break;
-        case "user_echo":
-        case "assistant_delta":
-        case "assistant_done":
-        case "tool":
-          setTranscript((t) => applyTranscript(t, msg));
-          if (msg.type === "user_echo") setStatus("thinking");
-          if (msg.type === "assistant_done") setStatus((s) => (s === "speaking" ? s : "idle"));
-          break;
-        case "permission_request":
-          setPermission({ id: msg.id, question: msg.question, detail: msg.detail });
-          break;
-        case "runner_status":
-          setRunner({ online: msg.online, name: msg.name });
-          break;
-        case "speak_end":
-          break;
-        case "error":
-          setError(msg.message);
-          setStatus("idle");
-          break;
-      }
-    };
+      };
+      socket.onclose = (e) => {
+        setStatus("offline");
+        if (e.code === 4401) setError("Signed out. Reload to sign in again.");
+        // Phones drop sockets whenever the screen locks. Come back on our own.
+        if (shouldReconnect({ code: e.code, deliberate })) timer = setTimeout(connect, reconnectDelayMs(attempt++));
+      };
+      socket.onmessage = (evt) => {
+        if (evt.data instanceof ArrayBuffer) {
+          const view = new DataView(evt.data);
+          const seq = view.getUint32(0);
+          audio.current.push(seq, new Blob([evt.data.slice(4)], { type: "audio/mpeg" }));
+          return;
+        }
+        const msg = JSON.parse(evt.data);
+        switch (msg.type) {
+          case "ready":
+            localStorage.setItem("kaya:conversation", msg.conversationId);
+            setStatus("idle");
+            setError(null);
+            break;
+          case "user_echo":
+          case "assistant_delta":
+          case "assistant_done":
+          case "tool":
+            setTranscript((t) => applyTranscript(t, msg));
+            if (msg.type === "user_echo") setStatus("thinking");
+            if (msg.type === "assistant_done") setStatus((s) => (s === "speaking" ? s : "idle"));
+            break;
+          case "permission_request":
+            setPermission({ id: msg.id, question: msg.question, detail: msg.detail });
+            break;
+          case "runner_status":
+            setRunner({ online: msg.online, name: msg.name });
+            break;
+          case "speak_end":
+            break;
+          case "error":
+            setError(msg.message);
+            setStatus("idle");
+            break;
+        }
+      };
     };
 
     connect();

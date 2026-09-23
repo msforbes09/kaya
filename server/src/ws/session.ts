@@ -16,7 +16,13 @@ const BUSY = "Your runner is busy with a turn from another session. Try again wh
  */
 export class Session {
   private conversation: { id: string; runnerId: string | null; agentSessionId: string | null } | null = null;
-  private turn: { turnId: string; cancel(): void; answerPermission(id: string, allow: boolean): void; abort: AbortController; finish: () => void } | null = null;
+  private turn: {
+    turnId: string;
+    cancel(): void;
+    answerPermission(id: string, allow: boolean): void;
+    abort: AbortController;
+    finish: () => void;
+  } | null = null;
   private unsubscribeStatus: (() => void) | null = null;
   private closed = false;
   /** GitHub login, sent with each turn so the agent greets the right person. */

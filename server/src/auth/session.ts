@@ -18,6 +18,9 @@ export async function authorizeSession(value: string | undefined, secret: string
 /** Pulls the session cookie out of a raw Cookie header (socket upgrades have no cookie helper). */
 export function sessionCookieFromHeader(cookieHeader: string | undefined): string | undefined {
   if (!cookieHeader) return undefined;
-  const pair = cookieHeader.split(";").map((s) => s.trim()).find((s) => s.startsWith(`${SESSION_COOKIE}=`));
+  const pair = cookieHeader
+    .split(";")
+    .map((s) => s.trim())
+    .find((s) => s.startsWith(`${SESSION_COOKIE}=`));
   return pair?.slice(SESSION_COOKIE.length + 1);
 }

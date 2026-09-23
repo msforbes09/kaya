@@ -49,7 +49,13 @@ export function authRoutes({ config, exchange = exchangeGithubCode }: AuthDeps) 
       user = await exchange({ code, clientId: config.GITHUB_CLIENT_ID, clientSecret: config.GITHUB_CLIENT_SECRET });
     } catch (err) {
       console.error("github exchange failed:", err instanceof Error ? err.name : "error");
-      return c.html(page("Kaya — sign-in failed", `<main><h1>GitHub sign-in failed</h1><p>Try again.</p><p><a href="/auth/github">Retry</a></p></main>`), 502);
+      return c.html(
+        page(
+          "Kaya — sign-in failed",
+          `<main><h1>GitHub sign-in failed</h1><p>Try again.</p><p><a href="/auth/github">Retry</a></p></main>`,
+        ),
+        502,
+      );
     }
 
     const member = await repo.findMemberByGithubId(user.githubId);
@@ -65,16 +71,23 @@ export function authRoutes({ config, exchange = exchangeGithubCode }: AuthDeps) 
       );
     }
 
-    c.header("Set-Cookie", sessionCookieHeader(signSession(member.id, config.COOKIE_SECRET, Date.now(), member.sessionEpoch), config.isProd), { append: true });
+    c.header(
+      "Set-Cookie",
+      sessionCookieHeader(signSession(member.id, config.COOKIE_SECRET, Date.now(), member.sessionEpoch), config.isProd),
+      { append: true },
+    );
     return c.redirect("/");
   });
 
   app.post("/auth/invite", requireSameOrigin(config.PUBLIC_URL), async (c) => {
     const pending = verifyPending(getCookie(c, PENDING_COOKIE), config.COOKIE_SECRET);
-    if (!pending) return c.html(page("Kaya — invite", `<main><h1>Sign-in expired</h1><p><a href="/auth/github">Start again</a></p></main>`), 400);
+    if (!pending)
+      return c.html(page("Kaya — invite", `<main><h1>Sign-in expired</h1><p><a href="/auth/github">Start again</a></p></main>`), 400);
 
     const signIn = (m: { id: string; sessionEpoch: number }) => {
-      c.header("Set-Cookie", sessionCookieHeader(signSession(m.id, config.COOKIE_SECRET, Date.now(), m.sessionEpoch), config.isProd), { append: true });
+      c.header("Set-Cookie", sessionCookieHeader(signSession(m.id, config.COOKIE_SECRET, Date.now(), m.sessionEpoch), config.isProd), {
+        append: true,
+      });
       c.header("Set-Cookie", clearPendingCookieHeader(), { append: true });
       return c.redirect("/");
     };
@@ -84,7 +97,9 @@ export function authRoutes({ config, exchange = exchangeGithubCode }: AuthDeps) 
     if (already) return signIn(already);
 
     const form = await c.req.parseBody();
-    const clean = String(form.invite ?? "").trim().toUpperCase();
+    const clean = String(form.invite ?? "")
+      .trim()
+      .toUpperCase();
 
     // Burning the invite is the only check: redeemInvite is a conditional
     // update, so two people racing one code cannot both win it. The member has
@@ -94,7 +109,10 @@ export function authRoutes({ config, exchange = exchangeGithubCode }: AuthDeps) 
       // The sign-in is refused either way; a member left behind is a cleanup
       // job, not a reason to hand out a session.
       await repo.deleteMember(member.id).catch(() => console.error("invite cleanup failed"));
-      return c.html(page("Kaya — invite", `<main><h1>Invite not valid</h1><p>That code is unknown or already used. Ask for a new one.</p></main>`), 403);
+      return c.html(
+        page("Kaya — invite", `<main><h1>Invite not valid</h1><p>That code is unknown or already used. Ask for a new one.</p></main>`),
+        403,
+      );
     }
 
     return signIn(member);

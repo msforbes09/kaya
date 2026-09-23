@@ -53,7 +53,13 @@ describe("pending signup cookie", () => {
     const v = signPending(pending, SECRET, 1_000_000);
     expect(verifyPending(v, "other", 1_000_001)).toBeNull();
     expect(verifyPending(undefined, SECRET)).toBeNull();
-    expect(verifyPending(`${signPending({ ...pending, login: "evil" }, SECRET, 1_000_000).split(".")[0]}.${v.split(".").slice(1).join(".")}`, SECRET, 1_000_001)).toBeNull();
+    expect(
+      verifyPending(
+        `${signPending({ ...pending, login: "evil" }, SECRET, 1_000_000).split(".")[0]}.${v.split(".").slice(1).join(".")}`,
+        SECRET,
+        1_000_001,
+      ),
+    ).toBeNull();
   });
 
   it("expires after 5 minutes", () => {

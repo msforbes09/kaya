@@ -21,11 +21,17 @@ export async function createMember(u: { githubId: number; login: string; avatarU
 
 /** Invalidates every session cookie the member holds. */
 export async function revokeSessions(id: string) {
-  await db.update(schema.members).set({ sessionEpoch: sql`${schema.members.sessionEpoch} + 1` }).where(eq(schema.members.id, id));
+  await db
+    .update(schema.members)
+    .set({ sessionEpoch: sql`${schema.members.sessionEpoch} + 1` })
+    .where(eq(schema.members.id, id));
 }
 
 export async function revokeAllSessions(): Promise<number> {
-  const rows = await db.update(schema.members).set({ sessionEpoch: sql`${schema.members.sessionEpoch} + 1` }).returning({ id: schema.members.id });
+  const rows = await db
+    .update(schema.members)
+    .set({ sessionEpoch: sql`${schema.members.sessionEpoch} + 1` })
+    .returning({ id: schema.members.id });
   return rows.length;
 }
 
@@ -107,12 +113,7 @@ export async function addMessage(
 }
 
 // memories (per member)
-export async function remember(
-  memberId: string,
-  kind: (typeof schema.memories.$inferInsert)["kind"],
-  subject: string,
-  content: string,
-) {
+export async function remember(memberId: string, kind: (typeof schema.memories.$inferInsert)["kind"], subject: string, content: string) {
   const [row] = await db.insert(schema.memories).values({ memberId, kind, subject, content }).returning();
   return row;
 }

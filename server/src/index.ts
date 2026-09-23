@@ -59,12 +59,24 @@ app.get(
   "/ws",
   upgradeWebSocket(async (c) => {
     const memberId = await memberIdFromCookieHeader(c.req.header("cookie"), config.COOKIE_SECRET);
-    if (!memberId) return { onOpen(_evt, ws) { ws.close(4401, "unauthorized"); } };
+    if (!memberId)
+      return {
+        onOpen(_evt, ws) {
+          ws.close(4401, "unauthorized");
+        },
+      };
     let session: Session | null = null;
     return {
-      onOpen(_evt, ws) { session = new Session(ws, memberId, hub); },
-      onMessage(evt) { if (typeof evt.data === "string") void session?.handle(evt.data); },
-      onClose() { session?.close(); session = null; },
+      onOpen(_evt, ws) {
+        session = new Session(ws, memberId, hub);
+      },
+      onMessage(evt) {
+        if (typeof evt.data === "string") void session?.handle(evt.data);
+      },
+      onClose() {
+        session?.close();
+        session = null;
+      },
     };
   }),
 );

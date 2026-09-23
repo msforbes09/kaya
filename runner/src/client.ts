@@ -23,7 +23,8 @@ export interface ClientDeps {
   runAgent?: typeof runAgentTurn;
 }
 
-const defaultMakeSocket = (url: string, headers: Record<string, string>): WebSocketLike => new WebSocket(url, { headers }) as unknown as WebSocketLike;
+const defaultMakeSocket = (url: string, headers: Record<string, string>): WebSocketLike =>
+  new WebSocket(url, { headers }) as unknown as WebSocketLike;
 const defaultSleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 /** Keeps one outbound socket to the cloud and runs at most one agent turn at a time. */
@@ -36,10 +37,19 @@ export class RunnerClient {
   private stopped = false;
   private attempt = 0;
 
-  constructor(private readonly cfg: RunnerConfig, private readonly deps: ClientDeps = {}) {
-    this.bridge = new MemoryBridge((m) => this.send(m), () => this.current?.turnId ?? "");
+  constructor(
+    private readonly cfg: RunnerConfig,
+    private readonly deps: ClientDeps = {},
+  ) {
+    this.bridge = new MemoryBridge(
+      (m) => this.send(m),
+      () => this.current?.turnId ?? "",
+    );
     this.mcpServer = deps.mcpServer ?? createKayaMcpServer(this.bridge);
-    this.permissions = new PermissionBroker((m) => this.send(m), () => this.current?.turnId ?? "");
+    this.permissions = new PermissionBroker(
+      (m) => this.send(m),
+      () => this.current?.turnId ?? "",
+    );
   }
 
   currentTurnId(): string | null {
@@ -65,11 +75,17 @@ export class RunnerClient {
     const log = this.deps.log ?? console.log;
     const s = (this.deps.makeSocket ?? defaultMakeSocket)(this.url(), { Authorization: `Bearer ${this.cfg.token}` });
     this.socket = s;
-    s.on("open", () => { this.attempt = 0; log(`connected to ${this.url()}`); });
+    s.on("open", () => {
+      this.attempt = 0;
+      log(`connected to ${this.url()}`);
+    });
     s.on("message", (data: unknown) => this.handle(String(data)));
     s.on("error", (err: unknown) => log(`socket error: ${err instanceof Error ? err.message : String(err)}`));
     s.on("unexpected-response", (_req: unknown, res: { statusCode?: number }) =>
-      log(`${this.cfg.cloudUrl} answered HTTP ${res?.statusCode ?? "?"} instead of a WebSocket upgrade. Is that Kaya's cloud, and is it up?`));
+      log(
+        `${this.cfg.cloudUrl} answered HTTP ${res?.statusCode ?? "?"} instead of a WebSocket upgrade. Is that Kaya's cloud, and is it up?`,
+      ),
+    );
     s.on("close", (code?: number) => {
       this.socket = null;
       this.bridge.rejectAll("runner disconnected");
@@ -83,7 +99,9 @@ export class RunnerClient {
       }
       const wait = nextBackoffMs(this.attempt++, this.deps.random);
       log(`disconnected, retrying in ${wait / 1000}s`);
-      void (this.deps.sleep ?? defaultSleep)(wait).then(() => { if (!this.stopped) this.connect(); });
+      void (this.deps.sleep ?? defaultSleep)(wait).then(() => {
+        if (!this.stopped) this.connect();
+      });
     });
   }
 
@@ -114,11 +132,16 @@ export class RunnerClient {
           runAgent: this.deps.runAgent,
         });
         this.current = { turnId: msg.turnId, abort: t.abort };
-        void t.done.finally(() => { if (this.current?.turnId === msg.turnId) this.current = null; });
+        void t.done.finally(() => {
+          if (this.current?.turnId === msg.turnId) this.current = null;
+        });
         return;
       }
       case "cancel":
-        if (this.current?.turnId === msg.turnId) { this.current.abort(); this.current = null; }
+        if (this.current?.turnId === msg.turnId) {
+          this.current.abort();
+          this.current = null;
+        }
         return;
       case "permission_response":
         return this.permissions.answer(msg.id, msg.allow);

@@ -41,4 +41,7 @@ console.log(`Claude credential: ${process.env.ANTHROPIC_API_KEY ? "ANTHROPIC_API
 
 const client = new RunnerClient(cfg);
 client.start();
-process.on("SIGINT", () => { client.stop(); process.exit(0); });
+process.on("SIGINT", () => {
+  client.stop();
+  process.exit(0);
+});

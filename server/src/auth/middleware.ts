@@ -32,7 +32,9 @@ export function isSameOrigin(origin: string | undefined, publicUrl: string): boo
   }
 }
 
-export const requireSameOrigin = (publicUrl: string): MiddlewareHandler => async (c, next) => {
-  if (!isSameOrigin(c.req.header("origin"), publicUrl)) return c.json({ error: "cross-origin request refused" }, 403);
-  await next();
-};
+export const requireSameOrigin =
+  (publicUrl: string): MiddlewareHandler =>
+  async (c, next) => {
+    if (!isSameOrigin(c.req.header("origin"), publicUrl)) return c.json({ error: "cross-origin request refused" }, 403);
+    await next();
+  };

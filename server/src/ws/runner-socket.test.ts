@@ -39,7 +39,13 @@ describe("runnerSocket", () => {
 
   it("logs, without the message body, when handling a runner message rejects", async () => {
     vi.mocked(repo.findRunnerByTokenHash).mockResolvedValue({ id: "r1", memberId: "m1", name: "mac" } as never);
-    const hub = { attach: vi.fn(), detach: vi.fn(), handleMessage: vi.fn(async () => { throw new Error("hub blew up"); }) };
+    const hub = {
+      attach: vi.fn(),
+      detach: vi.fn(),
+      handleMessage: vi.fn(async () => {
+        throw new Error("hub blew up");
+      }),
+    };
     const errors = vi.spyOn(console, "error").mockImplementation(() => {});
     const factory = runnerSocket(hub as never, fakeUpgrade) as unknown as (c: unknown) => Promise<{
       onOpen(evt: unknown, ws: unknown): void;

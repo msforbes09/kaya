@@ -14,12 +14,7 @@ export const recallArgs = z.object({ query: z.string().min(1) });
 const INVALID = "Invalid memory call.";
 
 export interface MemoryRepo {
-  remember(
-    memberId: string,
-    kind: (typeof MEMORY_KINDS)[number],
-    subject: string,
-    content: string,
-  ): Promise<{ id: string }>;
+  remember(memberId: string, kind: (typeof MEMORY_KINDS)[number], subject: string, content: string): Promise<{ id: string }>;
   recall(memberId: string, query: string): Promise<{ kind: string; subject: string; content: string }[]>;
 }
 
