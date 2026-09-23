@@ -9,6 +9,11 @@ describe("buildQueryOptions", () => {
     expect(o.cwd).toBe("/w");
   });
 
+  it("puts the member's name into the system prompt", () => {
+    const o = buildQueryOptions({ workspace: "/w", resumeSessionId: null, model: "sonnet", userName: "arnel", mcpServer: {} as never, ask: async () => true });
+    expect(String(o.systemPrompt)).toContain("arnel");
+  });
+
   it("starts fresh when there is no session to resume", () => {
     const o = buildQueryOptions({ workspace: "/w", resumeSessionId: null, model: "sonnet", mcpServer: {} as never, ask: async () => true });
     expect(o.resume).toBeUndefined();

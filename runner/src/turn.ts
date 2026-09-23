@@ -32,7 +32,7 @@ export class PermissionBroker {
 }
 
 export interface ExecuteOptions {
-  turn: { turnId: string; conversationId: string; text: string; resumeSessionId?: string | null };
+  turn: { turnId: string; conversationId: string; text: string; resumeSessionId?: string | null; userName?: string };
   workspace: string;
   model: string;
   mcpServer: ReturnType<typeof createKayaMcpServer>;
@@ -59,6 +59,7 @@ export function executeTurn(opts: ExecuteOptions): { done: Promise<void>; abort(
       prompt: opts.turn.text,
       resumeSessionId: opts.turn.resumeSessionId ?? null,
       model: opts.model,
+      userName: opts.turn.userName ?? "",
       ask: (q, d) => opts.permissions.ask(q, d),
       signal: abort.signal,
       workspace: opts.workspace,
