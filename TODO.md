@@ -25,3 +25,4 @@
 - Joined assistant text drops the space between spoken chunks ("...now.Done, Blackbox."). Fix in the chunker or the transcript reducer.
 - Per-turn cost is about one dollar on Opus; harmless on a subscription login, but API-key members will pay it. Ties into "Model choice in runner".
 - Session recording: optionally save each conversation's MP3 frames and transcript to disk or the DB for replay while testing.
+- `Session` caches the conversation from `hello`; if that row is deleted (memory reset) the next turn fails on the messages FK until the page reloads. Recreate the conversation when the insert fails, and add a "forget everything" admin command so nobody has to run SQL.
