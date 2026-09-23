@@ -24,7 +24,12 @@ describe("memoryServiceFor", () => {
   });
 
   it("rejects invalid remember args without touching the repo", async () => {
-    for (const args of [{}, { kind: "nope", subject: "s", content: "c" }, { kind: "fact", subject: "", content: "c" }, { kind: "fact", subject: "s", content: "" }]) {
+    for (const args of [
+      {},
+      { kind: "nope", subject: "s", content: "c" },
+      { kind: "fact", subject: "", content: "c" },
+      { kind: "fact", subject: "s", content: "" },
+    ]) {
       expect(await service().remember("m1", args as Record<string, unknown>)).toBe("Invalid memory call.");
     }
     expect(repoLike.remember).not.toHaveBeenCalled();

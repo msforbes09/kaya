@@ -2,21 +2,10 @@
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
     "jsx": "react-jsx",
-    "lib": [
-      "ES2022",
-      "DOM",
-      "DOM.Iterable"
-    ],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "noEmit": true,
-    "types": [
-      "vite/client",
-      "vite-plugin-pwa/client"
-    ]
+    "types": ["vite/client", "vite-plugin-pwa/client"]
   },
-  "include": [
-    "src"
-  ],
-  "exclude": [
-    "src/**/*.test.ts"
-  ]
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts"]
 }

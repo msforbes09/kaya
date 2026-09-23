@@ -7,6 +7,8 @@ const noisy = /\b(npm (run )?(build|test|typecheck|install|ci)|npx (tsc|vitest)|
 const piped = /\|\s*(tail|head|grep|wc|sed|awk)\b/;
 if (!noisy.test(cmd) || piped.test(cmd)) process.exit(0);
 const updated = { ...input.tool_input, command: `( ${cmd} ) 2>&1 | tail -n 80` };
-process.stdout.write(JSON.stringify({
-  hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "allow", updatedInput: updated },
-}));
+process.stdout.write(
+  JSON.stringify({
+    hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "allow", updatedInput: updated },
+  }),
+);

@@ -14,9 +14,12 @@
     "db:generate": "npm run db:generate -w server",
     "db:migrate": "npm run db:migrate -w server",
     "typecheck": "npm run typecheck -w server && npm run typecheck -w web && npm run typecheck -w runner",
-    "test": "npm test -w server && npm test -w web && npm test -w runner"
+    "test": "npm test -w server && npm test -w web && npm test -w runner",
+    "format": "biome format --write .",
+    "format:check": "biome format ."
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.14",
     "concurrently": "^9.1.2"
   },
   "engines": {

@@ -22,14 +22,7 @@
       "Bash(find*)",
       "Bash(wc*)"
     ],
-    "deny": [
-      "Read(./server/.env)",
-      "Read(./web/.env)",
-      "Read(./.env)",
-      "Edit(./server/.env)",
-      "Edit(./web/.env)",
-      "Write(./server/.env)"
-    ]
+    "deny": ["Read(./server/.env)", "Read(./web/.env)", "Read(./.env)", "Edit(./server/.env)", "Edit(./web/.env)", "Write(./server/.env)"]
   },
   "hooks": {
     "PreToolUse": [
@@ -46,6 +39,18 @@
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/truncate-output.js",
             "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/format-on-save.sh",
+            "timeout": 10
           }
         ]
       }

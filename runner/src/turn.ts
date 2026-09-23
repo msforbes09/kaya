@@ -87,5 +87,11 @@ export function executeTurn(opts: ExecuteOptions): { done: Promise<void>; abort(
     }
   })().catch((err) => opts.send({ type: "turn_error", turnId, message: err instanceof Error ? err.message : String(err) }));
 
-  return { done, abort: () => { abort.abort(); opts.permissions.cancelAll(); } };
+  return {
+    done,
+    abort: () => {
+      abort.abort();
+      opts.permissions.cancelAll();
+    },
+  };
 }

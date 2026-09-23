@@ -3,11 +3,20 @@ import { RunnerHub, type RunnerLink, type TurnHandlers } from "./runner-hub.js";
 
 const link = () => {
   const sent: string[] = [];
-  const l: RunnerLink & { sent: string[]; closed: number[] } = { sent, closed: [], send: (d) => sent.push(d), close: (c) => l.closed.push(c ?? 1000) };
+  const l: RunnerLink & { sent: string[]; closed: number[] } = {
+    sent,
+    closed: [],
+    send: (d) => sent.push(d),
+    close: (c) => l.closed.push(c ?? 1000),
+  };
   return l;
 };
 const handlers = (): TurnHandlers & Record<string, ReturnType<typeof vi.fn>> => ({
-  onDelta: vi.fn(), onTool: vi.fn(), onPermission: vi.fn(), onDone: vi.fn(), onError: vi.fn(),
+  onDelta: vi.fn(),
+  onTool: vi.fn(),
+  onPermission: vi.fn(),
+  onDone: vi.fn(),
+  onError: vi.fn(),
 });
 const memory = { remember: vi.fn(async () => "Remembered (1)."), recall: vi.fn(async () => "Nothing stored about that.") };
 
@@ -24,13 +33,25 @@ describe("RunnerHub", () => {
     hub.attach("m1", "r1", "mac", l);
     const h = handlers();
     const t = hub.startTurn("m1", { conversationId: "c1", text: "hi", resumeSessionId: null }, h)!;
-    expect(JSON.parse(l.sent[0])).toEqual({ type: "turn_start", turnId: "turn-1", conversationId: "c1", text: "hi", resumeSessionId: null });
+    expect(JSON.parse(l.sent[0])).toEqual({
+      type: "turn_start",
+      turnId: "turn-1",
+      conversationId: "c1",
+      text: "hi",
+      resumeSessionId: null,
+    });
 
     await hub.handleMessage("m1", JSON.stringify({ type: "text_delta", turnId: "turn-1", text: "He" }));
     await hub.handleMessage("m1", JSON.stringify({ type: "tool_start", turnId: "turn-1", name: "Bash", summary: "Running: ls" }));
-    await hub.handleMessage("m1", JSON.stringify({ type: "permission_request", turnId: "turn-1", id: "p1", question: "Run?", detail: "rm" }));
+    await hub.handleMessage(
+      "m1",
+      JSON.stringify({ type: "permission_request", turnId: "turn-1", id: "p1", question: "Run?", detail: "rm" }),
+    );
     t.answerPermission("p1", true);
-    await hub.handleMessage("m1", JSON.stringify({ type: "turn_done", turnId: "turn-1", sessionId: "s1", costUsd: 0.2, fullText: "Hello" }));
+    await hub.handleMessage(
+      "m1",
+      JSON.stringify({ type: "turn_done", turnId: "turn-1", sessionId: "s1", costUsd: 0.2, fullText: "Hello" }),
+    );
 
     expect(h.onDelta).toHaveBeenCalledWith("He");
     expect(h.onTool).toHaveBeenCalledWith("Bash", "Running: ls");
@@ -43,7 +64,10 @@ describe("RunnerHub", () => {
     const hub = new RunnerHub(memory);
     const l = link();
     hub.attach("m1", "r1", "mac", l);
-    await hub.handleMessage("m1", JSON.stringify({ type: "memory_call", turnId: "x", callId: "c9", tool: "recall", args: { query: "etravel" } }));
+    await hub.handleMessage(
+      "m1",
+      JSON.stringify({ type: "memory_call", turnId: "x", callId: "c9", tool: "recall", args: { query: "etravel" } }),
+    );
     expect(memory.recall).toHaveBeenCalledWith("m1", { query: "etravel" });
     expect(JSON.parse(l.sent[0])).toEqual({ type: "memory_result", callId: "c9", result: "Nothing stored about that." });
   });
@@ -103,7 +127,10 @@ describe("RunnerHub", () => {
     const a = link();
     const b = link();
     hub.attach("m1", "r1", "mac", a);
-    const memoryCallPromise = hub.handleMessage("m1", JSON.stringify({ type: "memory_call", turnId: "x", callId: "c1", tool: "recall", args: { query: "test" } }));
+    const memoryCallPromise = hub.handleMessage(
+      "m1",
+      JSON.stringify({ type: "memory_call", turnId: "x", callId: "c1", tool: "recall", args: { query: "test" } }),
+    );
     // Runner A receives the call, but it's still waiting for the memory service
     hub.attach("m1", "r2", "desk", b);
     // Runner B replaces A. Now when the memory call completes, it should go to B, not A
@@ -127,5 +154,15 @@ describe("RunnerHub", () => {
     const third = hub.startTurn("m1", { conversationId: "c2", text: "three", userName: "" }, handlers());
     expect(third).not.toBe("busy");
     expect(third).not.toBeNull();
+  });
+
+  it("drops a member's listener set once the last listener unsubscribes", () => {
+    const hub = new RunnerHub(memory);
+    const off1 = hub.onStatusChange("m1", () => {});
+    const off2 = hub.onStatusChange("m1", () => {});
+    off1();
+    expect(hub.hasListeners("m1")).toBe(true);
+    off2();
+    expect(hub.hasListeners("m1")).toBe(false);
   });
 });

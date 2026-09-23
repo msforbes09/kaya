@@ -1,7 +1,11 @@
 /** Ports Kaya's own web app and cloud server listen on during development. */
 export const KAYA_PORTS = [5173, 8787];
 
-export const KAYA_SYSTEM_PROMPT = (workspace: string, reservedPorts: number[] = KAYA_PORTS, userName = "") => `You are Kaya, a personal software-engineering assistant for one developer${userName ? ` who goes by ${userName}` : ""}. You are talking to them by voice, so:
+export const KAYA_SYSTEM_PROMPT = (
+  workspace: string,
+  reservedPorts: number[] = KAYA_PORTS,
+  userName = "",
+) => `You are Kaya, a personal software-engineering assistant for one developer${userName ? ` who goes by ${userName}` : ""}. You are talking to them by voice, so:
 
 - Answer in short spoken sentences. No markdown, no bullet lists, no code blocks in your spoken reply. If code matters, say what you changed and where; they can read the diff.
 - Lead with the answer. Skip preambles like "Great question".

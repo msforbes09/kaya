@@ -113,7 +113,13 @@ export async function* runAgentTurn(
           if (m.subtype !== "success" && m.is_error) {
             yield { type: "error", message: m.result ?? `Agent ended with ${m.subtype}` };
           }
-          yield { type: "done", sessionId, costUsd: m.total_cost_usd, fullText: joiner.text, usage: summarizeResult(m, opts.resumeSessionId) };
+          yield {
+            type: "done",
+            sessionId,
+            costUsd: m.total_cost_usd,
+            fullText: joiner.text,
+            usage: summarizeResult(m, opts.resumeSessionId),
+          };
           break;
         }
       }

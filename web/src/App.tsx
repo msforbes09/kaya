@@ -7,11 +7,20 @@ import { runnerBannerText } from "./runner-banner";
 export function App() {
   const [me, setMe] = useState<null | undefined | { login: string }>(undefined);
   useEffect(() => {
-    fetch("/api/me").then(async (r) => setMe(r.ok ? await r.json() : null)).catch(() => setMe(null));
+    fetch("/api/me")
+      .then(async (r) => setMe(r.ok ? await r.json() : null))
+      .catch(() => setMe(null));
   }, []);
   if (me === undefined) return null;
   if (me === null) return <SignIn />;
-  return <Console onSignOut={async () => { await fetch("/auth/logout", { method: "POST" }); location.reload(); }} />;
+  return (
+    <Console
+      onSignOut={async () => {
+        await fetch("/auth/logout", { method: "POST" });
+        location.reload();
+      }}
+    />
+  );
 }
 
 function SignIn() {
@@ -20,7 +29,9 @@ function SignIn() {
       <img className="logo" src="/kaya.png" alt="" width={96} height={96} />
       <h1>Kaya</h1>
       <p>Voice-first dev assistant for the team. Invite only.</p>
-      <a className="primary button" href="/auth/github">Sign in with GitHub</a>
+      <a className="primary button" href="/auth/github">
+        Sign in with GitHub
+      </a>
     </main>
   );
 }
@@ -83,21 +94,27 @@ function Console({ onSignOut }: { onSignOut: () => void }) {
         <span className={`dot ${kaya.status}`} />
         <span className="status">{label(kaya.status, listening)}</span>
         <span className="spacer" />
-        <button className="ghost" onClick={kaya.newConversation}>New chat</button>
-        <button className="ghost" onClick={onSignOut}>Sign out</button>
+        <button className="ghost" onClick={kaya.newConversation}>
+          New chat
+        </button>
+        <button className="ghost" onClick={onSignOut}>
+          Sign out
+        </button>
       </header>
 
       {runnerBannerText(kaya.runner) && (
-        <div className="banner runner">{runnerBannerText(kaya.runner)} <a href="/pair">Pair a runner</a></div>
+        <div className="banner runner">
+          {runnerBannerText(kaya.runner)} <a href="/pair">Pair a runner</a>
+        </div>
       )}
 
       <div className="log" ref={logRef}>
-        {kaya.lines.length === 0 && (
-          <p className="empty">Tap the ring and start talking. Try: "what repos are in my workspace?"</p>
-        )}
+        {kaya.lines.length === 0 && <p className="empty">Tap the ring and start talking. Try: "what repos are in my workspace?"</p>}
         {kaya.lines.map((l) =>
           l.who === "tool" ? (
-            <div key={l.id} className="line tool">{l.text}</div>
+            <div key={l.id} className="line tool">
+              {l.text}
+            </div>
           ) : (
             <div key={l.id} className={`line ${l.who}${"live" in l && l.live ? " live" : ""}`}>
               <span className="who">{l.who === "you" ? "You" : "Kaya"}</span>
@@ -106,7 +123,10 @@ function Console({ onSignOut }: { onSignOut: () => void }) {
           ),
         )}
         {listening && scribe.partialTranscript && (
-          <div className="line you partial"><span className="who">You</span><p>{scribe.partialTranscript}</p></div>
+          <div className="line you partial">
+            <span className="who">You</span>
+            <p>{scribe.partialTranscript}</p>
+          </div>
         )}
       </div>
 
@@ -118,13 +138,21 @@ function Console({ onSignOut }: { onSignOut: () => void }) {
           <pre>{kaya.permission.detail}</pre>
           <div className="row">
             <button onClick={() => kaya.answerPermission(kaya.permission!.id, false)}>No</button>
-            <button className="primary" onClick={() => kaya.answerPermission(kaya.permission!.id, true)}>Yes, run it</button>
+            <button className="primary" onClick={() => kaya.answerPermission(kaya.permission!.id, true)}>
+              Yes, run it
+            </button>
           </div>
         </div>
       )}
 
       <footer>
-        <form className="typed" onSubmit={(e) => { e.preventDefault(); submitTyped(); }}>
+        <form
+          className="typed"
+          onSubmit={(e) => {
+            e.preventDefault();
+            submitTyped();
+          }}
+        >
           <input value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="Or type…" enterKeyHint="send" />
         </form>
         <button
@@ -136,7 +164,9 @@ function Console({ onSignOut }: { onSignOut: () => void }) {
           <span className="core" />
         </button>
         {kaya.status === "speaking" || kaya.status === "thinking" ? (
-          <button className="ghost stop" onClick={kaya.cancel}>Stop</button>
+          <button className="ghost stop" onClick={kaya.cancel}>
+            Stop
+          </button>
         ) : (
           <span className="stop-placeholder" />
         )}

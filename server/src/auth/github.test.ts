@@ -28,7 +28,8 @@ describe("github oauth", () => {
   });
 
   it("throws the same error when the exchange body is not JSON", async () => {
-    const fetchImpl = (async () => new Response("<html>502</html>", { status: 200, headers: { "content-type": "text/html" } })) as typeof fetch;
+    const fetchImpl = (async () =>
+      new Response("<html>502</html>", { status: 200, headers: { "content-type": "text/html" } })) as typeof fetch;
     await expect(exchangeGithubCode({ code: "x", clientId: "c", clientSecret: "s", fetchImpl })).rejects.toThrow(
       "github token exchange failed",
     );

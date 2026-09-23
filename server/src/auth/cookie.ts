@@ -64,9 +64,9 @@ export interface PendingSignup {
 
 /** value = base64url(json).hmac — a 5 minute proof that GitHub just vouched for this user. */
 export function signPending(user: { githubId: number; login: string; avatarUrl: string }, secret: string, now = Date.now()): string {
-  const payload = Buffer.from(
-    JSON.stringify({ githubId: user.githubId, login: user.login, avatarUrl: user.avatarUrl, iat: now }),
-  ).toString("base64url");
+  const payload = Buffer.from(JSON.stringify({ githubId: user.githubId, login: user.login, avatarUrl: user.avatarUrl, iat: now })).toString(
+    "base64url",
+  );
   return `${payload}.${mac("pending", payload, secret)}`;
 }
 

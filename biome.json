@@ -1,0 +1,8 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "formatter": { "enabled": true, "indentStyle": "space", "indentWidth": 2, "lineWidth": 140 },
+  "javascript": { "formatter": { "quoteStyle": "double", "semicolons": "always", "trailingCommas": "all" } },
+  "linter": { "enabled": false },
+  "assist": { "enabled": false },
+  "files": { "includes": ["**", "!**/dist/**", "!**/node_modules/**", "!**/drizzle/**", "!**/*.md"] }
+}
