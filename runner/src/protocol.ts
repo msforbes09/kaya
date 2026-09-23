@@ -12,6 +12,7 @@ export type RunnerToCloud =
   | { type: "tool_start"; turnId: string; name: string; summary: string }
   | { type: "permission_request"; turnId: string; id: string; question: string; detail: string }
   | { type: "memory_call"; turnId: string; callId: string; tool: "remember" | "recall"; args: Record<string, unknown> }
+  /** `costUsd` is the SDK's running total for the resumed session, not this turn alone. */
   | { type: "turn_done"; turnId: string; sessionId: string; costUsd?: number; fullText: string }
   | { type: "turn_error"; turnId: string; message: string };
 

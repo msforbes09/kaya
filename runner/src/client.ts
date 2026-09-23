@@ -1,6 +1,6 @@
 import WebSocket from "ws";
 import { nextBackoffMs } from "./backoff.js";
-import type { RunnerConfig } from "./config.js";
+import { DEFAULT_MODEL, type RunnerConfig } from "./config.js";
 import { MemoryBridge } from "./memory-bridge.js";
 import { parseCloudMessage, type RunnerToCloud } from "./protocol.js";
 import { createKayaMcpServer } from "./agent/tools.js";
@@ -97,6 +97,8 @@ export class RunnerClient {
         const t = executeTurn({
           turn: msg,
           workspace: this.cfg.workspace,
+          model: this.cfg.model ?? DEFAULT_MODEL,
+          log: this.deps.log,
           mcpServer: this.mcpServer,
           send: (m) => this.send(m),
           permissions: this.permissions,

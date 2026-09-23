@@ -3,7 +3,7 @@ import { existsSync, statSync } from "node:fs";
 import { hostname } from "node:os";
 import { createInterface } from "node:readline/promises";
 import { RunnerClient } from "./client.js";
-import { configPath, readConfig, writeConfig } from "./config.js";
+import { configPath, readConfig, resolveModel, writeConfig } from "./config.js";
 import { pair } from "./pair.js";
 
 const ask = async (q: string) => {
@@ -34,7 +34,9 @@ if (!existsSync(cfg.workspace) || !statSync(cfg.workspace).isDirectory()) {
   process.exit(1);
 }
 
+cfg.model = resolveModel(process.env, cfg);
 console.log(`Workspace: ${cfg.workspace}`);
+console.log(`Model: ${cfg.model} (set KAYA_MODEL or "model" in ${path} to change)`);
 console.log(`Claude credential: ${process.env.ANTHROPIC_API_KEY ? "ANTHROPIC_API_KEY from environment" : "this machine's claude login"}`);
 
 const client = new RunnerClient(cfg);

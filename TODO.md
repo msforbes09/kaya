@@ -5,13 +5,12 @@
 - Embeddings column exists in the schema but is unused in v1.
 - SDK warns `CLAUDE_SDK_CAN_USE_TOOL_SHADOWED`: bare names in `allowedTools` bypass `canUseTool`. Intended for the read-only set, but decide whether to move gating to a PreToolUse hook so one path handles everything.
 - Server crashes on an unhandled DB error inside the WebSocket `onOpen` (seen when tables were missing). Catch it, send an `error` message, close the socket.
-- Cost per turn is high (0.7–1.6 USD estimated for a one-line hello). The runner sets no `model`, so the SDK default (top model) is used, and every turn re-sends the Claude Code system prompt plus tool definitions. Set `model` in `runner.ts` (Sonnet or Haiku for chat turns), verify `resume` actually reuses the session, and check cache hits.
 - Publish `kaya-runner` to npm.
 - Multiple runners per member.
 - Hosted GitHub sandbox runner.
 - Phone auto-reconnect.
 - Mic pause while speaking.
-- Model choice in runner.
+- Model choice per member from the UI (the runner reads `KAYA_MODEL` or its config file today).
 - Runner reconnect: add jitter to the backoff and stop retrying on a 4401 close (revoked token) with a distinct log line.
 - Cookie revocation: sessions carry no epoch, so a deleted member keeps a live socket up to 30 days; add a member-level session version.
 - `server/src/ws/runner-socket.ts` has no test; add one asserting a bad bearer token closes with 4401.
@@ -23,7 +22,6 @@
 - `docs/superpowers/plans/2026-09-22-cloud-runner.md` still shows the superseded invite flow and `inviteIsUnused`; it is a historical plan.
 - `runner/src/agent/prompt.ts` hardcodes the user's name as "Blackbox"; pass the member's GitHub login (or a display name) with each turn and greet that.
 - Joined assistant text drops the space between spoken chunks ("...now.Done, Blackbox."). Fix in the chunker or the transcript reducer.
-- Per-turn cost is about one dollar on Opus; harmless on a subscription login, but API-key members will pay it. Ties into "Model choice in runner".
 - Session recording: optionally save each conversation's MP3 frames and transcript to disk or the DB for replay while testing.
 - `Session` caches the conversation from `hello`; if that row is deleted (memory reset) the next turn fails on the messages FK until the page reloads. Recreate the conversation when the insert fails, and add a "forget everything" admin command so nobody has to run SQL.
 - The agent started `python -m http.server 5173` in the workspace and took Kaya's own web port after Vite exited; the runner then got 404s. Tell the agent in the prompt which ports are Kaya's, and have the runner log a clear line when the cloud URL answers with a non-WebSocket response.

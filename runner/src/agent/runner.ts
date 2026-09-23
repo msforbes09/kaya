@@ -1,4 +1,4 @@
-import { query, type SDKMessage } from "@anthropic-ai/claude-agent-sdk";
+import { query, type Options, type SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import { KAYA_SYSTEM_PROMPT } from "./prompt.js";
 import { KAYA_TOOL_NAMES, createKayaMcpServer } from "./tools.js";
 import { AUTO_ALLOWED, buildCanUseTool, type PermissionAsk } from "./permissions.js";
@@ -8,14 +8,62 @@ export type AgentEvent =
   | { type: "text_delta"; text: string }
   | { type: "tool_start"; name: string; input: unknown }
   | { type: "status"; text: string }
-  | { type: "done"; sessionId: string; costUsd?: number; fullText: string }
+  | { type: "done"; sessionId: string; costUsd?: number; fullText: string; usage?: TurnUsage }
   | { type: "error"; message: string };
 
 export interface RunOptions {
   prompt: string;
   resumeSessionId?: string | null;
+  /** Claude model alias or id. The SDK default is the top model, which costs about a dollar a turn. */
+  model: string;
   ask: PermissionAsk;
   signal?: AbortSignal;
+}
+
+export interface TurnUsage {
+  costUsd?: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  inputTokens: number;
+  outputTokens: number;
+  /** True when the SDK continued the session we asked it to resume. */
+  resumed: boolean;
+}
+
+type QueryInputs = Pick<RunOptions, "resumeSessionId" | "model" | "ask"> & {
+  workspace: string;
+  mcpServer: ReturnType<typeof createKayaMcpServer>;
+  abortController?: AbortController;
+};
+
+/** Everything passed to the SDK for one turn, kept pure so the model and resume wiring can be tested. */
+export function buildQueryOptions(o: QueryInputs): Options {
+  return {
+    cwd: o.workspace,
+    model: o.model,
+    resume: o.resumeSessionId ?? undefined,
+    systemPrompt: KAYA_SYSTEM_PROMPT(o.workspace),
+    includePartialMessages: true,
+    mcpServers: { kaya: o.mcpServer },
+    allowedTools: [...AUTO_ALLOWED, ...KAYA_TOOL_NAMES],
+    canUseTool: buildCanUseTool(o.ask),
+    abortController: o.abortController,
+    maxTurns: 40,
+    env: buildAgentEnv(process.env, process.env.ANTHROPIC_API_KEY),
+  };
+}
+
+/** Pulls cost and cache numbers out of the SDK result message. */
+export function summarizeResult(result: Record<string, any>, resumeSessionId: string | null | undefined): TurnUsage {
+  const u = result.usage ?? {};
+  return {
+    costUsd: result.total_cost_usd,
+    cacheReadTokens: u.cache_read_input_tokens ?? 0,
+    cacheWriteTokens: u.cache_creation_input_tokens ?? 0,
+    inputTokens: u.input_tokens ?? 0,
+    outputTokens: u.output_tokens ?? 0,
+    resumed: Boolean(resumeSessionId) && result.session_id === resumeSessionId,
+  };
 }
 
 /**
@@ -33,18 +81,7 @@ export async function* runAgentTurn(
 
   const stream = query({
     prompt: opts.prompt,
-    options: {
-      cwd: opts.workspace,
-      resume: opts.resumeSessionId ?? undefined,
-      systemPrompt: KAYA_SYSTEM_PROMPT(opts.workspace),
-      includePartialMessages: true,
-      mcpServers: { kaya: opts.mcpServer },
-      allowedTools: [...AUTO_ALLOWED, ...KAYA_TOOL_NAMES],
-      canUseTool: buildCanUseTool(opts.ask),
-      abortController: abort,
-      maxTurns: 40,
-      env: buildAgentEnv(process.env, process.env.ANTHROPIC_API_KEY),
-    },
+    options: buildQueryOptions({ ...opts, abortController: abort }),
   });
 
   try {
@@ -72,7 +109,7 @@ export async function* runAgentTurn(
           if (m.subtype !== "success" && m.is_error) {
             yield { type: "error", message: m.result ?? `Agent ended with ${m.subtype}` };
           }
-          yield { type: "done", sessionId, costUsd: m.total_cost_usd, fullText };
+          yield { type: "done", sessionId, costUsd: m.total_cost_usd, fullText, usage: summarizeResult(m, opts.resumeSessionId) };
           break;
         }
       }
