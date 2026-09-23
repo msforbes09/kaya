@@ -76,9 +76,13 @@ export async function deletePairingCode(code: string) {
 
 // runners
 export async function upsertRunner(r: { memberId: string; name: string; tokenHash: string; workspace: string }) {
-  await db.delete(schema.runners).where(eq(schema.runners.memberId, r.memberId));
-  const [row] = await db.insert(schema.runners).values(r).returning();
-  return row;
+  // One runner per member today. Delete and insert in one transaction so a
+  // failure between them can never leave the member with no runner at all.
+  return db.transaction(async (tx) => {
+    await tx.delete(schema.runners).where(eq(schema.runners.memberId, r.memberId));
+    const [row] = await tx.insert(schema.runners).values(r).returning();
+    return row;
+  });
 }
 export async function findRunnerByTokenHash(tokenHash: string) {
   return db.query.runners.findFirst({ where: eq(schema.runners.tokenHash, tokenHash) });

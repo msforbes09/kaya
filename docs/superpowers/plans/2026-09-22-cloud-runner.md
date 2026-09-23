@@ -1,5 +1,7 @@
 # Cloud Relay + Local Runner Implementation Plan
 
+> **Historical.** Implemented and merged on 2026-09-22 (PR #2). The invite flow here (`inviteIsUnused`, code exchanged on the invite page) was superseded during review by a signed pending cookie and `POST /auth/invite`. Read the code and `docs/superpowers/specs/2026-09-22-cloud-runner-design.md` for the current shape; this file is kept as the record of the plan.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Split Kaya into a hosted cloud relay (GitHub sign-in, voice, storage) and a local runner that executes agent turns on each member's own machine.

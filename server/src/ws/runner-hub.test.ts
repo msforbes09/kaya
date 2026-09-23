@@ -155,4 +155,14 @@ describe("RunnerHub", () => {
     expect(third).not.toBe("busy");
     expect(third).not.toBeNull();
   });
+
+  it("drops a member's listener set once the last listener unsubscribes", () => {
+    const hub = new RunnerHub(memory);
+    const off1 = hub.onStatusChange("m1", () => {});
+    const off2 = hub.onStatusChange("m1", () => {});
+    off1();
+    expect(hub.hasListeners("m1")).toBe(true);
+    off2();
+    expect(hub.hasListeners("m1")).toBe(false);
+  });
 });

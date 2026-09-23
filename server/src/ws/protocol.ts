@@ -15,6 +15,10 @@ export type ServerMessage =
   | { type: "status"; text: string }
   | { type: "permission_request"; id: string; question: string; detail: string }
   | { type: "runner_status"; online: boolean; name?: string }
+  /**
+   * Ends the audio for a turn. After a `cancel`, the cancelled turn's speak_end
+   * can arrive after the next turn has started; clients must not key state off it.
+   */
   | { type: "speak_end" }
   | { type: "error"; message: string };
 

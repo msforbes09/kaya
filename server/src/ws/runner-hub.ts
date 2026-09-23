@@ -70,7 +70,16 @@ export class RunnerHub {
     const set = this.listeners.get(memberId) ?? new Set();
     set.add(cb);
     this.listeners.set(memberId, set);
-    return () => set.delete(cb);
+    return () => {
+      set.delete(cb);
+      // Every phone session subscribes; without this the map grows by one entry per member forever.
+      if (set.size === 0 && this.listeners.get(memberId) === set) this.listeners.delete(memberId);
+    };
+  }
+
+  /** Test seam: whether any session is still subscribed to this member's runner status. */
+  hasListeners(memberId: string): boolean {
+    return this.listeners.has(memberId);
   }
 
   startTurn(
