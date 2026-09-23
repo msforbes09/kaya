@@ -17,6 +17,7 @@ import { requireSameOrigin } from "../auth/middleware.js";
 import { authorizeSession } from "../auth/session.js";
 import * as repo from "../db/repo.js";
 import { escapeHtml } from "../html.js";
+import { isModelChoice, MODELS } from "../models.js";
 
 export interface AuthDeps {
   config: { GITHUB_CLIENT_ID: string; GITHUB_CLIENT_SECRET: string; COOKIE_SECRET: string; PUBLIC_URL: string; isProd: boolean };
@@ -126,7 +127,16 @@ export function authRoutes({ config, exchange = exchangeGithubCode }: AuthDeps) 
   app.get("/api/me", async (c) => {
     const m = await authorizeSession(getCookie(c, SESSION_COOKIE), config.COOKIE_SECRET);
     if (!m) return c.json({ error: "unauthorized" }, 401);
-    return c.json({ id: m.id, login: m.githubLogin, avatarUrl: m.avatarUrl });
+    return c.json({ id: m.id, login: m.githubLogin, avatarUrl: m.avatarUrl, model: m.model ?? null, models: MODELS });
+  });
+
+  app.post("/api/me/model", requireSameOrigin(config.PUBLIC_URL), async (c) => {
+    const m = await authorizeSession(getCookie(c, SESSION_COOKIE), config.COOKIE_SECRET);
+    if (!m) return c.json({ error: "unauthorized" }, 401);
+    const body = (await c.req.json().catch(() => ({}))) as { model?: unknown };
+    if (!isModelChoice(body.model)) return c.json({ error: "unknown model" }, 400);
+    await repo.setMemberModel(m.id, body.model);
+    return c.json({ model: body.model });
   });
 
   return app;

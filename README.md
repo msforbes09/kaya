@@ -43,7 +43,7 @@ To wipe what Kaya remembers for one person, run `npm run forget -- --login <gith
 
 To sign someone out of every phone and browser, run `npm run signout -- --login <github_login>` (or `--all`). Their paired runner keeps working.
 
-Turns run on Sonnet by default. To change it, set `KAYA_MODEL=opus` when starting the runner, or add `"model": "opus"` to `~/.kaya/runner.json`. The runner logs one line per turn with the session cost and cache hits.
+Turns run on Sonnet by default. Each member can pick Sonnet, Opus or Haiku from the header of the app; that choice travels with every turn. A runner's own default can be set with `KAYA_MODEL=opus` or `"model": "opus"` in `~/.kaya/runner.json` and applies when the app says "Runner default". The runner logs one line per turn with the session cost and cache hits.
 
 The mic only works over HTTPS on iPhone. For phone testing before deployment, run the Vite dev server over a tunnel (e.g. `cloudflared tunnel --url http://localhost:5173`) or on Tailscale with `tailscale cert`.
 

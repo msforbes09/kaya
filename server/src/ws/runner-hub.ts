@@ -84,7 +84,7 @@ export class RunnerHub {
 
   startTurn(
     memberId: string,
-    turn: { conversationId: string; text: string; resumeSessionId?: string | null; userName: string },
+    turn: { conversationId: string; text: string; resumeSessionId?: string | null; userName: string; model?: string | null },
     handlers: TurnHandlers,
   ) {
     const cur = this.live.get(memberId);
@@ -101,6 +101,7 @@ export class RunnerHub {
       text: turn.text,
       resumeSessionId: turn.resumeSessionId ?? null,
       userName: turn.userName,
+      model: turn.model ?? null,
     });
     return {
       turnId,

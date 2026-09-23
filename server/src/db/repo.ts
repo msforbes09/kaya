@@ -19,6 +19,10 @@ export async function createMember(u: { githubId: number; login: string; avatarU
   return row;
 }
 
+export async function setMemberModel(id: string, model: string | null) {
+  await db.update(schema.members).set({ model }).where(eq(schema.members.id, id));
+}
+
 /** Invalidates every session cookie the member holds. */
 export async function revokeSessions(id: string) {
   await db

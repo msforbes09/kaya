@@ -25,8 +25,6 @@ export class Session {
   } | null = null;
   private unsubscribeStatus: (() => void) | null = null;
   private closed = false;
-  /** GitHub login, sent with each turn so the agent greets the right person. */
-  private userName = "";
 
   constructor(
     private readonly ws: WSContext,
@@ -87,7 +85,6 @@ export class Session {
   }
 
   private async hello(existingId?: string) {
-    if (!this.userName) this.userName = (await repo.getMember(this.memberId))?.githubLogin ?? "";
     const existing = existingId ? await repo.getConversation(existingId, this.memberId) : null;
     const conv = existing ?? (await repo.createConversation(this.memberId));
     this.conversation = { id: conv.id, runnerId: conv.runnerId ?? null, agentSessionId: conv.agentSessionId ?? null };
@@ -162,6 +159,10 @@ export class Session {
     this.send({ type: "user_echo", text: clean });
     await this.storeUserMessage(conv, clean);
 
+    // Fresh each turn: the member can change their model in the app mid-conversation.
+    const member = await repo.getMember(this.memberId);
+    const userName = member?.githubLogin ?? "";
+    const model = member?.model ?? null;
     const resumeSessionId = conv.runnerId === status.runnerId ? conv.agentSessionId : null;
     let resolveFinish: () => void;
     const finish = new Promise<void>((resolve) => {
@@ -170,7 +171,7 @@ export class Session {
 
     const handle = this.hub.startTurn(
       this.memberId,
-      { conversationId: conv.id, text: clean, resumeSessionId, userName: this.userName },
+      { conversationId: conv.id, text: clean, resumeSessionId, userName, model },
       {
         onDelta: (t) => {
           if (abort.signal.aborted) return;

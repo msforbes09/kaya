@@ -118,3 +118,29 @@ describe("executeTurn cost log", () => {
     expect(line).toContain("resumed");
   });
 });
+
+describe("executeTurn model", () => {
+  const run = async (model: string | null | undefined) => {
+    let seen: string | undefined;
+    async function* agent(o: { model: string }) {
+      seen = o.model;
+      yield { type: "done" as const, sessionId: "s", fullText: "" };
+    }
+    const send = vi.fn();
+    await executeTurn({
+      turn: { turnId: "t1", conversationId: "c1", text: "hi", model },
+      workspace: "/w",
+      model: "sonnet",
+      mcpServer: {} as never,
+      send,
+      permissions: new PermissionBroker(send, () => "t1"),
+      runAgent: ((o: { model: string }) => agent(o)) as never,
+    }).done;
+    return seen;
+  };
+  it("prefers the member's choice from the cloud over the runner's default", async () => {
+    expect(await run("opus")).toBe("opus");
+    expect(await run(null)).toBe("sonnet");
+    expect(await run(undefined)).toBe("sonnet");
+  });
+});

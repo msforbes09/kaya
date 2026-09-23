@@ -301,4 +301,16 @@ describe("Session", () => {
     expect(json().at(-1)).toEqual({ type: "speak_end" });
     expect(repo.addMessage).not.toHaveBeenCalledWith("c1", "user", "hi");
   });
+
+  it("sends the member's model choice with every turn", async () => {
+    vi.mocked(repo.getMember).mockResolvedValue({ id: "m1", githubLogin: "arnel", model: "opus" } as never);
+    const hub = new RunnerHub(memory, () => "turn-1");
+    const link = runnerLink();
+    hub.attach("m1", "r1", "mac", link);
+    const { ws } = fakeWs();
+    const s = new Session(ws, "m1", hub, speaker);
+    await s.handle(JSON.stringify({ type: "hello" }));
+    await s.handle(JSON.stringify({ type: "user_text", text: "hi" }));
+    expect(JSON.parse(link.sent[0])).toMatchObject({ type: "turn_start", model: "opus" });
+  });
 });

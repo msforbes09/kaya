@@ -3,9 +3,16 @@ import { CommitStrategy, useScribe } from "@elevenlabs/react";
 import { shouldForwardTranscript } from "./mic-gate";
 import { useKaya } from "./useKaya";
 import { runnerBannerText } from "./runner-banner";
+import { labelFor } from "./models";
+
+interface Me {
+  login: string;
+  model: string | null;
+  models: string[];
+}
 
 export function App() {
-  const [me, setMe] = useState<null | undefined | { login: string }>(undefined);
+  const [me, setMe] = useState<null | undefined | Me>(undefined);
   useEffect(() => {
     fetch("/api/me")
       .then(async (r) => setMe(r.ok ? await r.json() : null))
@@ -15,6 +22,15 @@ export function App() {
   if (me === null) return <SignIn />;
   return (
     <Console
+      me={me}
+      onModel={async (model) => {
+        const r = await fetch("/api/me/model", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ model }),
+        });
+        if (r.ok) setMe({ ...me, model });
+      }}
       onSignOut={async () => {
         await fetch("/auth/logout", { method: "POST" });
         location.reload();
@@ -36,7 +52,7 @@ function SignIn() {
   );
 }
 
-function Console({ onSignOut }: { onSignOut: () => void }) {
+function Console({ me, onModel, onSignOut }: { me: Me; onModel: (model: string | null) => void; onSignOut: () => void }) {
   const kaya = useKaya();
   const [typed, setTyped] = useState("");
   const [micError, setMicError] = useState<string | null>(null);
@@ -94,6 +110,19 @@ function Console({ onSignOut }: { onSignOut: () => void }) {
         <span className={`dot ${kaya.status}`} />
         <span className="status">{label(kaya.status, listening)}</span>
         <span className="spacer" />
+        <select
+          className="ghost"
+          aria-label="Model"
+          value={me.model ?? ""}
+          onChange={(e) => onModel(e.target.value === "" ? null : e.target.value)}
+        >
+          <option value="">{labelFor(null)}</option>
+          {me.models.map((m) => (
+            <option key={m} value={m}>
+              {labelFor(m)}
+            </option>
+          ))}
+        </select>
         <button className="ghost" onClick={kaya.newConversation}>
           New chat
         </button>

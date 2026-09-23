@@ -39,6 +39,7 @@ describe("RunnerHub", () => {
       conversationId: "c1",
       text: "hi",
       resumeSessionId: null,
+      model: null,
     });
 
     await hub.handleMessage("m1", JSON.stringify({ type: "text_delta", turnId: "turn-1", text: "He" }));

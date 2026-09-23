@@ -1,8 +1,19 @@
 /** Messages between the cloud and a member's runner. Declared once, imported by both workspaces. */
 
 export type CloudToRunner =
-  /** `userName` is how the agent addresses the member (their GitHub login); empty when unknown. */
-  | { type: "turn_start"; turnId: string; conversationId: string; text: string; resumeSessionId?: string | null; userName: string }
+  /**
+   * `userName` is how the agent addresses the member (their GitHub login); empty when unknown.
+   * `model` is the member's choice from the app; null leaves the runner's own default in charge.
+   */
+  | {
+      type: "turn_start";
+      turnId: string;
+      conversationId: string;
+      text: string;
+      resumeSessionId?: string | null;
+      userName: string;
+      model: string | null;
+    }
   | { type: "permission_response"; id: string; allow: boolean }
   | { type: "cancel"; turnId: string }
   | { type: "memory_result"; callId: string; result: string };

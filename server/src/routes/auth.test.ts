@@ -4,6 +4,7 @@ vi.mock("../db/repo.js", () => ({
   findMemberByGithubId: vi.fn(),
   createMember: vi.fn(),
   getMember: vi.fn(),
+  setMemberModel: vi.fn(),
   redeemInvite: vi.fn(),
   deleteMember: vi.fn(),
 }));
@@ -169,7 +170,31 @@ describe("auth routes", () => {
     expect((await app().request("/api/me")).status).toBe(401);
     vi.mocked(repo.getMember).mockResolvedValue({ id: "m1", githubLogin: "octo", avatarUrl: "https://a/x.png", sessionEpoch: 0 } as never);
     const res = await app().request("/api/me", { headers: { cookie: `kaya_session=${signSession("m1", cfg.COOKIE_SECRET)}` } });
-    expect(await res.json()).toEqual({ id: "m1", login: "octo", avatarUrl: "https://a/x.png" });
+    expect(await res.json()).toEqual({
+      id: "m1",
+      login: "octo",
+      avatarUrl: "https://a/x.png",
+      model: null,
+      models: ["sonnet", "opus", "haiku"],
+    });
+  });
+
+  it("POST /api/me/model stores a valid choice for the member, same-origin only", async () => {
+    vi.mocked(repo.getMember).mockResolvedValue({ id: "m1", githubLogin: "octo", sessionEpoch: 0, model: null } as never);
+    const cookie = `kaya_session=${signSession("m1", cfg.COOKIE_SECRET)}`;
+    const post = (body: unknown, origin = "http://localhost:5173") =>
+      app().request("/api/me/model", {
+        method: "POST",
+        body: JSON.stringify(body),
+        headers: { origin, "content-type": "application/json", cookie },
+      });
+    expect((await post({ model: "opus" })).status).toBe(200);
+    expect(repo.setMemberModel).toHaveBeenCalledWith("m1", "opus");
+    expect((await post({ model: null })).status).toBe(200);
+    expect(repo.setMemberModel).toHaveBeenCalledWith("m1", null);
+    expect((await post({ model: "gpt-5" })).status).toBe(400);
+    expect((await post({ model: "opus" }, "https://evil.example")).status).toBe(403);
+    expect(repo.setMemberModel).toHaveBeenCalledTimes(2);
   });
 
   it("POST /auth/logout clears the cookie", async () => {
