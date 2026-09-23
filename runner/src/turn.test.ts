@@ -13,7 +13,7 @@ describe("executeTurn", () => {
     const broker = new PermissionBroker(send, () => "t1", () => "p1");
     const t = executeTurn({
       turn: { turnId: "t1", conversationId: "c1", text: "hello" },
-      workspace: "/w",
+      workspace: "/w", model: "sonnet",
       mcpServer: {} as never,
       send,
       permissions: broker,
@@ -39,7 +39,7 @@ describe("executeTurn", () => {
     const broker = new PermissionBroker(send, () => "t1", () => "p1");
     const t = executeTurn({
       turn: { turnId: "t1", conversationId: "c1", text: "hello" },
-      workspace: "/w",
+      workspace: "/w", model: "sonnet",
       mcpServer: {} as never,
       send,
       permissions: broker,
@@ -58,5 +58,26 @@ describe("executeTurn", () => {
     expect(send).toHaveBeenCalledWith({ type: "permission_request", turnId: "t1", id: "p1", question: "Run it?", detail: "rm -rf x" });
     broker.answer("p1", true);
     await expect(p).resolves.toBe(true);
+  });
+});
+
+describe("executeTurn cost log", () => {
+  it("logs one line per turn with cost, cache reads, and resume state", async () => {
+    async function* agent() {
+      yield { type: "done" as const, sessionId: "s1", costUsd: 0.0123, fullText: "", usage: { costUsd: 0.0123, cacheReadTokens: 5000, cacheWriteTokens: 200, inputTokens: 10, outputTokens: 40, resumed: true } };
+    }
+    const send = vi.fn();
+    const log = vi.fn();
+    const broker = new PermissionBroker(send, () => "t1", () => "p1");
+    await executeTurn({
+      turn: { turnId: "t1", conversationId: "c1", text: "hello", resumeSessionId: "s1" },
+      workspace: "/w", model: "sonnet", mcpServer: {} as never, send, permissions: broker, log,
+      runAgent: () => agent() as never,
+    }).done;
+    expect(log).toHaveBeenCalledTimes(1);
+    const line = log.mock.calls[0][0] as string;
+    expect(line).toContain("session $0.0123");
+    expect(line).toContain("cache read 5000");
+    expect(line).toContain("resumed");
   });
 });

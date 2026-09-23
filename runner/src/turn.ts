@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { runAgentTurn, type AgentEvent } from "./agent/runner.js";
+import { runAgentTurn, type AgentEvent, type TurnUsage } from "./agent/runner.js";
 import { summarizeTool } from "./agent/summarize.js";
 import type { createKayaMcpServer } from "./agent/tools.js";
 import type { RunnerToCloud } from "./protocol.js";
@@ -34,10 +34,19 @@ export class PermissionBroker {
 export interface ExecuteOptions {
   turn: { turnId: string; conversationId: string; text: string; resumeSessionId?: string | null };
   workspace: string;
+  model: string;
   mcpServer: ReturnType<typeof createKayaMcpServer>;
   send: (m: RunnerToCloud) => void;
   permissions: PermissionBroker;
   runAgent?: typeof runAgentTurn;
+  log?: (line: string) => void;
+}
+
+/** One line per turn so a runner owner can see what a turn costs and whether the session carried over. */
+export function formatUsage(turnId: string, u: TurnUsage): string {
+  // The SDK reports the running total for the resumed session, not this turn alone.
+  const cost = u.costUsd === undefined ? "session cost n/a" : `session $${u.costUsd.toFixed(4)}`;
+  return `turn ${turnId}: ${cost}, in ${u.inputTokens}, cache read ${u.cacheReadTokens}, cache write ${u.cacheWriteTokens}, out ${u.outputTokens}, ${u.resumed ? "resumed session" : "new session"}`;
 }
 
 export function executeTurn(opts: ExecuteOptions): { done: Promise<void>; abort(): void } {
@@ -49,6 +58,7 @@ export function executeTurn(opts: ExecuteOptions): { done: Promise<void>; abort(
     const events: AsyncGenerator<AgentEvent> = run({
       prompt: opts.turn.text,
       resumeSessionId: opts.turn.resumeSessionId ?? null,
+      model: opts.model,
       ask: (q, d) => opts.permissions.ask(q, d),
       signal: abort.signal,
       workspace: opts.workspace,
@@ -64,6 +74,7 @@ export function executeTurn(opts: ExecuteOptions): { done: Promise<void>; abort(
           opts.send({ type: "tool_start", turnId, name: ev.name, summary: summarizeTool(ev.name, ev.input) });
           break;
         case "done":
+          if (ev.usage) (opts.log ?? console.log)(formatUsage(turnId, ev.usage));
           opts.send({ type: "turn_done", turnId, sessionId: ev.sessionId, costUsd: ev.costUsd, fullText: ev.fullText });
           break;
         case "error":
