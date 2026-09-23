@@ -2,7 +2,7 @@ import { query, type Options, type SDKMessage } from "@anthropic-ai/claude-agent
 import { KAYA_PORTS, KAYA_SYSTEM_PROMPT } from "./prompt.js";
 import { TextJoiner } from "./text-joiner.js";
 import { KAYA_TOOL_NAMES, createKayaMcpServer } from "./tools.js";
-import { AUTO_ALLOWED, buildCanUseTool, type PermissionAsk } from "./permissions.js";
+import { AUTO_ALLOWED, buildCanUseTool, preToolUseGate, type PermissionAsk } from "./permissions.js";
 import { buildAgentEnv } from "./env.js";
 
 export type AgentEvent =
@@ -50,6 +50,18 @@ export function buildQueryOptions(o: QueryInputs): Options {
     mcpServers: { kaya: o.mcpServer },
     allowedTools: [...AUTO_ALLOWED, ...KAYA_TOOL_NAMES],
     canUseTool: buildCanUseTool(o.ask),
+    hooks: {
+      PreToolUse: [
+        {
+          hooks: [
+            async (input) => {
+              const i = input as { tool_name?: string; tool_input?: unknown };
+              return preToolUseGate(String(i.tool_name ?? ""), i.tool_input);
+            },
+          ],
+        },
+      ],
+    },
     abortController: o.abortController,
     maxTurns: 40,
     env: buildAgentEnv(process.env, process.env.ANTHROPIC_API_KEY),

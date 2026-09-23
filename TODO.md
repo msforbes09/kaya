@@ -7,7 +7,6 @@
 - Pairing rate-limit state is in-memory per process; fine for one container, revisit if the cloud is ever scaled out.
 - Session recording: optionally save each conversation's MP3 frames and transcript to disk or the DB for replay while testing.
 - Turns do not survive a disconnect: the hub fails every live turn on runner detach, and the runner aborts its turn on socket close, so a cloud restart or a network blip kills whatever the agent was doing (the `AbortError: Stream closed` seen on 2026-09-23 was the SDK's side of that abort). Surviving it needs the runner to keep the turn running, buffer its output, and re-announce the turn on reconnect, plus the hub re-adopting it. Design first.
-- Grep over a directory can still surface lines from a `.env` inside it; the secrets gate only sees explicit paths. Consider passing an exclude glob for secret files on every Grep, or a PreToolUse hook that filters results.
 
 ## Enhancements (from the r/ClaudeAI "Jarvis" thread, 2026-09-23)
 
@@ -28,3 +27,4 @@ Ideas to discuss before building. None is agreed yet.
 - Event triggers: react to CI failures or merged PRs, then decide whether to notify or stay quiet.
 - Fire-and-forget jobs: start a long task and check in later. Depends on turns surviving a disconnect (above).
 - Probably skip: 30+ app integrations and inbox reading (scope and credential risk), and persona files like ClawSouls (the system prompt covers it).
+- `buildAgentEnv` passes the runner's whole environment to the SDK child. Strip everything but PATH, HOME, locale and the Claude credential so a runner started from an odd shell cannot leak or inherit surprises.

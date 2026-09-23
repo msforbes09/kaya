@@ -21,6 +21,21 @@ describe("buildQueryOptions", () => {
     expect(String(o.systemPrompt)).toContain("arnel");
   });
 
+  it("registers the secrets gate as a PreToolUse hook that matches every tool", () => {
+    const o = buildQueryOptions({
+      workspace: "/w",
+      resumeSessionId: null,
+      model: "sonnet",
+      userName: "",
+      mcpServer: {} as never,
+      ask: async () => true,
+    });
+    const pre = o.hooks?.PreToolUse ?? [];
+    expect(pre.length).toBe(1);
+    expect(pre[0].matcher).toBeUndefined();
+    expect(pre[0].hooks.length).toBe(1);
+  });
+
   it("never loads the workspace's own settings, so its allow rules cannot bypass the gate", () => {
     const o = buildQueryOptions({
       workspace: "/w",
