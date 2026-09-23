@@ -27,3 +27,5 @@
 - Session recording: optionally save each conversation's MP3 frames and transcript to disk or the DB for replay while testing.
 - `Session` caches the conversation from `hello`; if that row is deleted (memory reset) the next turn fails on the messages FK until the page reloads. Recreate the conversation when the insert fails, and add a "forget everything" admin command so nobody has to run SQL.
 - The agent started `python -m http.server 5173` in the workspace and took Kaya's own web port after Vite exited; the runner then got 404s. Tell the agent in the prompt which ports are Kaya's, and have the runner log a clear line when the cloud URL answers with a non-WebSocket response.
+- Speaking while Kaya works cancels the running turn and kills its subagents (Kaya's own observation from 2026-09-23). Decide: queue the new utterance, or require an explicit stop before a new turn starts.
+- The permission stream between runner and SDK dropped mid-task (`AbortError: Stream closed`), blocking writes for minutes. Reproduce, then make the runner reopen the query or surface the failure as a spoken error instead of hanging.
