@@ -182,4 +182,45 @@ describe("Session", () => {
     expect(json()).toContainEqual({ type: "error", message: "db down" });
     expect(json().at(-1)).toEqual({ type: "speak_end" });
   });
+
+  it("queues a second utterance while a turn is running and starts it after the turn finishes", async () => {
+    let n = 0;
+    const hub = new RunnerHub(memory, () => `turn-${++n}`);
+    const link = runnerLink();
+    hub.attach("m1", "r1", "mac", link);
+    const { ws, json } = fakeWs();
+    const s = new Session(ws, "m1", hub, speaker);
+    await s.handle(JSON.stringify({ type: "hello" }));
+    await s.handle(JSON.stringify({ type: "user_text", text: "first" }));
+    await s.handle(JSON.stringify({ type: "user_text", text: "second" }));
+
+    const runnerTypes = link.sent.map((m) => JSON.parse(m).type);
+    expect(runnerTypes).toEqual(["turn_start"]);
+    expect(json()).toContainEqual({ type: "status", text: "Queued. Kaya is still working on the last one." });
+
+    await hub.handleMessage("m1", JSON.stringify({ type: "turn_done", turnId: "turn-1", sessionId: "s1", fullText: "Done one." }));
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(link.sent.map((m) => JSON.parse(m))).toContainEqual(expect.objectContaining({ type: "turn_start", turnId: "turn-2", text: "second" }));
+    expect(json()).toContainEqual({ type: "user_echo", text: "second" });
+  });
+
+  it("cancel stops the running turn and drops anything queued", async () => {
+    let n = 0;
+    const hub = new RunnerHub(memory, () => `turn-${++n}`);
+    const link = runnerLink();
+    hub.attach("m1", "r1", "mac", link);
+    const { ws } = fakeWs();
+    const s = new Session(ws, "m1", hub, speaker);
+    await s.handle(JSON.stringify({ type: "hello" }));
+    await s.handle(JSON.stringify({ type: "user_text", text: "first" }));
+    await s.handle(JSON.stringify({ type: "user_text", text: "second" }));
+    await s.handle(JSON.stringify({ type: "cancel" }));
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+
+    const types = link.sent.map((m) => JSON.parse(m).type);
+    expect(types).toEqual(["turn_start", "cancel"]);
+  });
 });

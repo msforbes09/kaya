@@ -6,6 +6,7 @@ import type { RunnerHub } from "./runner-hub.js";
 import * as repo from "../db/repo.js";
 
 const NO_RUNNER = "Your runner isn't connected. Start kaya-runner on your machine.";
+const QUEUED = "Queued. Kaya is still working on the last one.";
 
 /**
  * One phone socket = one live session for one member. Routes user text to the
@@ -69,7 +70,11 @@ export class Session {
     this.send({ type: "runner_status", online: s.online, name: s.name });
   }
 
+  /** Utterances that arrived while a turn was running, in order. An explicit cancel drops them. */
+  private queue: string[] = [];
+
   private cancelTurn() {
+    this.queue = [];
     const turn = this.turn;
     this.turn = null;
     if (!turn) return;
@@ -86,7 +91,13 @@ export class Session {
     const clean = text.trim();
     if (!clean) return;
 
-    this.cancelTurn();
+    // Speech while Kaya works used to cancel the turn and kill whatever the
+    // agent was doing. Queue it instead; the stop button is the way to interrupt.
+    if (this.turn) {
+      this.queue.push(clean);
+      this.send({ type: "status", text: QUEUED });
+      return;
+    }
     const abort = new AbortController();
     const chunker = new SentenceChunker();
     let seq = 0;
@@ -189,6 +200,13 @@ export class Session {
       await Promise.allSettled(ttsQueue);
       if (!this.closed) this.send({ type: "speak_end" });
       if (this.turn?.abort === abort) this.turn = null;
+      const next = this.queue.shift();
+      if (next !== undefined && !this.closed) {
+        void this.userText(next).catch((err) => {
+          console.error("session error starting a queued turn:", err);
+          this.send({ type: "error", message: err instanceof Error ? err.message : String(err) });
+        });
+      }
     });
   }
 
