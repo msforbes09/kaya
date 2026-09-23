@@ -63,9 +63,38 @@ export function buildQueryOptions(o: QueryInputs): Options {
       ],
     },
     abortController: o.abortController,
-    maxTurns: 40,
+    maxTurns: MAX_TURNS,
     env: buildAgentEnv(process.env, process.env.ANTHROPIC_API_KEY),
   };
+}
+
+/** Tool calls one turn may make. Hit in practice at 40 by a screenshot-heavy browser check; the thread stays resumable either way. */
+export const MAX_TURNS = 200;
+
+const STEP_LIMIT_LINE = " I reached my step limit for one turn, so I stopped there. Say continue and I will pick it up.";
+
+/**
+ * Events for the SDK's final result message. A max-turns stop is not a
+ * failure: the work so far is kept and the session resumes on the next turn,
+ * so it is spoken as a status line rather than shown as an error.
+ */
+export function resultEvents(
+  m: Record<string, any>,
+  sessionId: string,
+  fullText: string,
+  resumeSessionId: string | null | undefined,
+): AgentEvent[] {
+  const events: AgentEvent[] = [];
+  let text = fullText;
+  if (m.subtype === "error_max_turns") {
+    const line = fullText.length > 0 && !/\s$/.test(fullText) ? STEP_LIMIT_LINE : STEP_LIMIT_LINE.trimStart();
+    text += line;
+    events.push({ type: "text_delta", text: line });
+  } else if (m.subtype !== "success" && m.is_error) {
+    events.push({ type: "error", message: m.result ?? `Agent ended with ${m.subtype}` });
+  }
+  events.push({ type: "done", sessionId, costUsd: m.total_cost_usd, fullText: text, usage: summarizeResult(m, resumeSessionId) });
+  return events;
 }
 
 /** Pulls cost and cache numbers out of the SDK result message. */
@@ -122,16 +151,7 @@ export async function* runAgentTurn(
           break;
         }
         case "result": {
-          if (m.subtype !== "success" && m.is_error) {
-            yield { type: "error", message: m.result ?? `Agent ended with ${m.subtype}` };
-          }
-          yield {
-            type: "done",
-            sessionId,
-            costUsd: m.total_cost_usd,
-            fullText: joiner.text,
-            usage: summarizeResult(m, opts.resumeSessionId),
-          };
+          for (const ev of resultEvents(m, sessionId, joiner.text, opts.resumeSessionId)) yield ev;
           break;
         }
       }

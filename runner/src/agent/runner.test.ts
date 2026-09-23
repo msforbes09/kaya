@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildQueryOptions, summarizeResult } from "./runner.js";
+import { buildQueryOptions, MAX_TURNS, resultEvents, summarizeResult } from "./runner.js";
 
 describe("buildQueryOptions", () => {
   it("pins the model and resumes the previous session", () => {
@@ -82,5 +82,35 @@ describe("summarizeResult", () => {
       outputTokens: 0,
       resumed: true,
     });
+  });
+});
+
+describe("resultEvents", () => {
+  it("turns a max-turns stop into a spoken line and a normal done, not an error", () => {
+    const ev = resultEvents({ subtype: "error_max_turns", is_error: true, session_id: "s1" }, "s1", "Partial reply.", null);
+    expect(ev.map((e) => e.type)).toEqual(["text_delta", "done"]);
+    expect((ev[0] as { text: string }).text).toMatch(/step limit/i);
+    expect((ev[0] as { text: string }).text).toMatch(/continue/i);
+    expect((ev[1] as { fullText: string }).fullText).toContain("step limit");
+  });
+
+  it("still reports other failures as errors", () => {
+    const ev = resultEvents({ subtype: "error_during_execution", is_error: true, result: "boom", session_id: "s1" }, "s1", "", null);
+    expect(ev.map((e) => e.type)).toEqual(["error", "done"]);
+    expect((ev[0] as { message: string }).message).toBe("boom");
+  });
+
+  it("gives a real task room: the cap is well above forty", () => {
+    expect(MAX_TURNS).toBeGreaterThanOrEqual(150);
+    expect(
+      buildQueryOptions({
+        workspace: "/w",
+        resumeSessionId: null,
+        model: "sonnet",
+        userName: "",
+        mcpServer: {} as never,
+        ask: async () => true,
+      }).maxTurns,
+    ).toBe(MAX_TURNS);
   });
 });
