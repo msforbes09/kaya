@@ -36,7 +36,7 @@ npm run db:generate && npm run db:migrate
 4. `npm run dev` (cloud + web).
 5. `npm run invite -w server` prints an invite code.
 6. Open http://localhost:5173, sign in with GitHub, paste the invite code.
-7. Start a runner: `KAYA_CLOUD_URL=http://localhost:5173 npm run dev:runner`. It prints a pairing code and URL.
+7. Start a runner. Team members use `npx kaya-runner` (see `runner/README.md`); in this checkout `KAYA_CLOUD_URL=http://localhost:5173 npm run dev:runner` runs it from source. It prints a pairing code and URL.
 8. Open the pair URL while signed in and confirm. The runner banner disappears; tap the ring.
 
 To wipe what Kaya remembers for one person, run `npm run forget -- --login <github_login>` in `server/` (`--all` for everyone). Memories and conversations go; sign-in and the paired runner stay.
