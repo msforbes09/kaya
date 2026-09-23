@@ -5,6 +5,9 @@ import { db, schema } from "./client.js";
 export async function findMemberByGithubId(githubId: number) {
   return db.query.members.findFirst({ where: eq(schema.members.githubId, githubId) });
 }
+export async function findMemberByLogin(login: string) {
+  return db.query.members.findFirst({ where: eq(schema.members.githubLogin, login) });
+}
 export async function getMember(id: string) {
   return db.query.members.findFirst({ where: eq(schema.members.id, id) });
 }
@@ -111,4 +114,21 @@ export async function recall(memberId: string, query: string, limit = 10) {
     .where(and(eq(schema.memories.memberId, memberId), or(ilike(schema.memories.subject, like), ilike(schema.memories.content, like))))
     .orderBy(desc(schema.memories.createdAt))
     .limit(limit);
+}
+
+/** Drops a member's memories and conversations (messages cascade). The member, invites, and runners stay. */
+export async function forgetMember(memberId: string) {
+  await db.transaction(async (tx) => {
+    await tx.delete(schema.memories).where(eq(schema.memories.memberId, memberId));
+    await tx.delete(schema.conversations).where(eq(schema.conversations.memberId, memberId));
+  });
+}
+/** Same for every member. Returns how many members there are. */
+export async function forgetAll(): Promise<number> {
+  return db.transaction(async (tx) => {
+    await tx.delete(schema.memories);
+    await tx.delete(schema.conversations);
+    const rows = await tx.select({ id: schema.members.id }).from(schema.members);
+    return rows.length;
+  });
 }

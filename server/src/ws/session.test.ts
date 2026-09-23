@@ -254,4 +254,24 @@ describe("Session", () => {
     await s.handle(JSON.stringify({ type: "user_text", text: "hi" }));
     expect(JSON.parse(link.sent[0])).toMatchObject({ type: "turn_start", userName: "arnel" });
   });
+
+  it("tells the phone when the runner is busy with a turn from another session", async () => {
+    const hub = new RunnerHub(memory, () => "turn-1");
+    const link = runnerLink();
+    hub.attach("m1", "r1", "mac", link);
+    const other = new Session(fakeWs().ws, "m1", hub, speaker);
+    await other.handle(JSON.stringify({ type: "hello" }));
+    await other.handle(JSON.stringify({ type: "user_text", text: "long task" }));
+
+    const { ws, json } = fakeWs();
+    const s = new Session(ws, "m1", hub, speaker);
+    await s.handle(JSON.stringify({ type: "hello" }));
+    await s.handle(JSON.stringify({ type: "user_text", text: "hi" }));
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(link.sent.map((m) => JSON.parse(m).type)).toEqual(["turn_start"]);
+    expect(json()).toContainEqual({ type: "status", text: "Your runner is busy with a turn from another session. Try again when it finishes." });
+    expect(json().at(-1)).toEqual({ type: "speak_end" });
+    expect(repo.addMessage).not.toHaveBeenCalledWith("c1", "user", "hi");
+  });
 });

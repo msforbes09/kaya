@@ -39,6 +39,8 @@ npm run db:generate && npm run db:migrate
 7. Start a runner: `KAYA_CLOUD_URL=http://localhost:5173 npm run dev:runner`. It prints a pairing code and URL.
 8. Open the pair URL while signed in and confirm. The runner banner disappears; tap the ring.
 
+To wipe what Kaya remembers for one person, run `npm run forget -- --login <github_login>` in `server/` (`--all` for everyone). Memories and conversations go; sign-in and the paired runner stay.
+
 Turns run on Sonnet by default. To change it, set `KAYA_MODEL=opus` when starting the runner, or add `"model": "opus"` to `~/.kaya/runner.json`. The runner logs one line per turn with the session cost and cache hits.
 
 The mic only works over HTTPS on iPhone. For phone testing before deployment, run the Vite dev server over a tunnel (e.g. `cloudflared tunnel --url http://localhost:5173`) or on Tailscale with `tailscale cert`.
