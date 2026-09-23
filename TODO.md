@@ -1,7 +1,6 @@
 # TODO (deferred work)
 
 - Decide whether runtime Kaya should read the target repo's own `.claude/` folder instead of a hard-coded system prompt.
-- `kaya-runner` is ready to publish (`npm publish -w runner --access public` after `npm login`); pick a license first.
 - Multiple runners per member.
 - Hosted GitHub sandbox runner.
 - Pairing rate-limit state is in-memory per process; fine for one container, revisit if the cloud is ever scaled out.

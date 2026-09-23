@@ -2,6 +2,8 @@
   "name": "kaya-runner",
   "version": "0.1.0",
   "description": "Kaya's local runner: runs Claude Agent SDK turns on your own machine for the Kaya voice assistant cloud.",
+  "author": "Arnel Forbes",
+  "license": "MIT",
   "private": false,
   "type": "module",
   "bin": {
