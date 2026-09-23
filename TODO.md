@@ -27,4 +27,4 @@ Ideas to discuss before building. None is agreed yet.
 - Event triggers: react to CI failures or merged PRs, then decide whether to notify or stay quiet.
 - Fire-and-forget jobs: start a long task and check in later. Depends on turns surviving a disconnect (above).
 - Probably skip: 30+ app integrations and inbox reading (scope and credential risk), and persona files like ClawSouls (the system prompt covers it).
-- `buildAgentEnv` passes the runner's whole environment to the SDK child. Strip everything but PATH, HOME, locale and the Claude credential so a runner started from an odd shell cannot leak or inherit surprises.
+- The SDK child now gets an allowlisted env, so `ANTHROPIC_BASE_URL` / `ANTHROPIC_AUTH_TOKEN` from a shell are dropped. If a member needs an enterprise gateway, add explicit `gateway` fields to `~/.kaya/runner.json` and pass those through.
