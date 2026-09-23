@@ -1,4 +1,4 @@
 {$DOMAIN} {
 	encode zstd gzip
-	reverse_proxy app:8787
+	reverse_proxy app:{$APP_PORT}
 }

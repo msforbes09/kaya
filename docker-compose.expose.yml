@@ -1,0 +1,7 @@
+# For a VPS that already has its own reverse proxy: publish the app on the
+# loopback interface and point that proxy at it, no Caddy.
+#   docker compose -f docker-compose.yml -f docker-compose.expose.yml up -d --build app
+services:
+  app:
+    ports:
+      - "127.0.0.1:${PORT:-8787}:${PORT:-8787}"

@@ -34,6 +34,19 @@ DATABASE_URL=postgres://kaya:<pw>@host.docker.internal:5432/kaya
 DOMAIN=<DOMAIN>
 ```
 
+### Ports
+
+`PORT` (app), `HTTP_PORT` and `HTTPS_PORT` (Caddy on the host) all come from
+`.env`. If the VPS already runs nginx, Traefik or another proxy on 80/443,
+leave Caddy out and publish the app on loopback for that proxy to reach:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.expose.yml up -d --build app
+```
+
+Then proxy `https://<DOMAIN>` to `http://127.0.0.1:<PORT>` with WebSocket
+upgrade enabled for `/ws` and `/runner`.
+
 ## 4. First deploy
 
 ```bash
@@ -76,5 +89,5 @@ docker compose logs -f app
 KAYA_CLOUD_URL=https://<DOMAIN> npx kaya-runner
 ```
 
-Until `kaya-runner` is published to npm, run it from a checkout instead:
-`npm run dev:runner`.
+Team members need Node 20+ and a `claude` login on that machine. The package
+page on npm carries the full instructions.
