@@ -4,7 +4,8 @@ import { serveStatic } from "@hono/node-server/serve-static";
 import { createNodeWebSocket } from "@hono/node-ws";
 import { getCookie } from "hono/cookie";
 import { config, isProd } from "./config.js";
-import { SESSION_COOKIE, verifySession } from "./auth/cookie.js";
+import { SESSION_COOKIE } from "./auth/cookie.js";
+import { authorizeSession } from "./auth/session.js";
 import { memberIdFromCookieHeader, requireMember } from "./auth/middleware.js";
 import { authRoutes } from "./routes/auth.js";
 import { pairingRoutes } from "./routes/pairing.js";
@@ -41,8 +42,8 @@ app.get("/api/scribe-token", requireMember, async (c) => c.json(await createScri
 
 app.get("/api/runner", requireMember, (c) => c.json(hub.status(c.get("memberId"))));
 
-app.get("/pair", (c) => {
-  const member = verifySession(getCookie(c, SESSION_COOKIE), config.COOKIE_SECRET);
+app.get("/pair", async (c) => {
+  const member = await authorizeSession(getCookie(c, SESSION_COOKIE), config.COOKIE_SECRET);
   if (!member) return c.redirect("/auth/github");
   const code = c.req.query("code") ?? "";
   return c.html(`<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pair runner</title>
@@ -56,8 +57,8 @@ el('go').onclick=async()=>{const r=await fetch('/api/pair/confirm',{method:'POST
 
 app.get(
   "/ws",
-  upgradeWebSocket((c) => {
-    const memberId = memberIdFromCookieHeader(c.req.header("cookie"), config.COOKIE_SECRET);
+  upgradeWebSocket(async (c) => {
+    const memberId = await memberIdFromCookieHeader(c.req.header("cookie"), config.COOKIE_SECRET);
     if (!memberId) return { onOpen(_evt, ws) { ws.close(4401, "unauthorized"); } };
     let session: Session | null = null;
     return {

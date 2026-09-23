@@ -1,23 +1,38 @@
 import type { MiddlewareHandler } from "hono";
 import { getCookie } from "hono/cookie";
 import { config } from "../config.js";
-import { SESSION_COOKIE, verifySession } from "./cookie.js";
+import { SESSION_COOKIE } from "./cookie.js";
+import { authorizeSession, sessionCookieFromHeader } from "./session.js";
 
-/** Pure: parse a raw Cookie header and return the member id, or null. Used by socket upgrades. */
-export function memberIdFromCookieHeader(cookieHeader: string | undefined, secret: string): string | null {
-  if (!cookieHeader) return null;
-  const pair = cookieHeader
-    .split(";")
-    .map((s) => s.trim())
-    .find((s) => s.startsWith(`${SESSION_COOKIE}=`));
-  return verifySession(pair?.slice(SESSION_COOKIE.length + 1), secret);
+/** Member id for a socket upgrade, or null. */
+export async function memberIdFromCookieHeader(cookieHeader: string | undefined, secret: string): Promise<string | null> {
+  const m = await authorizeSession(sessionCookieFromHeader(cookieHeader), secret);
+  return m?.id ?? null;
 }
 
 export type MemberEnv = { Variables: { memberId: string } };
 
 export const requireMember: MiddlewareHandler<MemberEnv> = async (c, next) => {
-  const id = verifySession(getCookie(c, SESSION_COOKIE), config.COOKIE_SECRET);
-  if (!id) return c.json({ error: "unauthorized" }, 401);
-  c.set("memberId", id);
+  const m = await authorizeSession(getCookie(c, SESSION_COOKIE), config.COOKIE_SECRET);
+  if (!m) return c.json({ error: "unauthorized" }, 401);
+  c.set("memberId", m.id);
+  await next();
+};
+
+/**
+ * Browsers send Origin on every cross-site and same-site POST, so a cookie-
+ * authenticated POST without our own origin is a forgery or a script; refuse it.
+ */
+export function isSameOrigin(origin: string | undefined, publicUrl: string): boolean {
+  if (!origin) return false;
+  try {
+    return new URL(origin).origin === new URL(publicUrl).origin;
+  } catch {
+    return false;
+  }
+}
+
+export const requireSameOrigin = (publicUrl: string): MiddlewareHandler => async (c, next) => {
+  if (!isSameOrigin(c.req.header("origin"), publicUrl)) return c.json({ error: "cross-origin request refused" }, 403);
   await next();
 };

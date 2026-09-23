@@ -6,7 +6,7 @@ const SECRET = "test-secret-0123456789";
 describe("session cookie", () => {
   it("verifies a value it signed", () => {
     const v = signSession("member-1", SECRET, 1_000_000);
-    expect(verifySession(v, SECRET, 1_000_001)).toBe("member-1");
+    expect(verifySession(v, SECRET, 1_000_001)).toEqual({ memberId: "member-1", epoch: 0 });
   });
 
   it("rejects a tampered member id", () => {
@@ -14,6 +14,14 @@ describe("session cookie", () => {
     const other = signSession("member-2", SECRET, 1_000_000);
     const tampered = [other.split(".")[0], ...good.split(".").slice(1)].join(".");
     expect(verifySession(tampered, SECRET, 1_000_001)).toBeNull();
+  });
+
+  it("carries the session epoch so a member can be signed out everywhere", () => {
+    const v = signSession("member-1", SECRET, 1_000_000, 3);
+    expect(verifySession(v, SECRET, 1_000_001)).toEqual({ memberId: "member-1", epoch: 3 });
+    const forged = v.split(".");
+    forged[2] = "4";
+    expect(verifySession(forged.join("."), SECRET, 1_000_001)).toBeNull();
   });
 
   it("rejects the wrong secret and missing values", () => {
@@ -29,7 +37,7 @@ describe("session cookie", () => {
 
   it("handles member ids containing dots", () => {
     const v = signSession("a.b", SECRET, 1_000_000);
-    expect(verifySession(v, SECRET, 1_000_001)).toBe("a.b");
+    expect(verifySession(v, SECRET, 1_000_001)).toEqual({ memberId: "a.b", epoch: 0 });
   });
 });
 

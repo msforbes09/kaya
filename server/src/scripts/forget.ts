@@ -3,9 +3,9 @@
 //        npm run forget -- --all                    → wipes them for every member
 // Members, invites, and paired runners are untouched; nobody has to sign in or pair again.
 import * as repo from "../db/repo.js";
-import { parseForgetArgs } from "./forget-args.js";
+import { parseMemberArgs } from "./member-args.js";
 
-const args = parseForgetArgs(process.argv.slice(2));
+const args = parseMemberArgs(process.argv.slice(2), "forget");
 if (!args.ok) {
   console.error(args.error);
   process.exit(2);
