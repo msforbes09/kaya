@@ -11,6 +11,6 @@ describe("kaya mcp server", () => {
     );
     const server = createKayaMcpServer(bridge);
     expect(server.name).toBe("kaya");
-    expect(KAYA_TOOL_NAMES).toEqual(["mcp__kaya__remember", "mcp__kaya__recall"]);
+    expect(KAYA_TOOL_NAMES).toEqual(["mcp__kaya__remember", "mcp__kaya__recall", "mcp__kaya__forget"]);
   });
 });

@@ -14,7 +14,6 @@ Ideas to discuss before building. None is agreed yet.
 - Memory keeps history: invalidate a superseded fact instead of overwriting it, and link it to its replacement with timestamps, so Kaya can say why something changed.
 - Memory types: tag each fact as preference, decision, directive, goal or relationship.
 - Memory confidence: weight facts by how recently they were confirmed, not a uniform decay.
-- Correct memory by voice ("forget that", "that's wrong now"). The forget script is a start.
 - Memory hygiene: a periodic pass that merges duplicates and prunes stale facts so the store doesn't bloat into noise.
 - Kaya identity, in two layers:
   - Core memories: a small, pinned set of formative memories that define who Kaya is and its relationship with the member. Always loaded into the prompt, never searched, never decayed. Promoted deliberately (by the member, or proposed by Kaya and confirmed), not by volume.

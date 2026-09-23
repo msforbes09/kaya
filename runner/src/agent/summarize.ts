@@ -17,6 +17,8 @@ export function summarizeTool(name: string, input: unknown): string {
       return `Remembering: ${i.subject ?? ""}`;
     case "mcp__kaya__recall":
       return `Recalling "${i.query ?? ""}"`;
+    case "mcp__kaya__forget":
+      return `Forgetting "${i.query ?? ""}"`;
     default:
       return name;
   }

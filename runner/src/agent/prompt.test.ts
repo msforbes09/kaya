@@ -22,4 +22,8 @@ describe("KAYA_SYSTEM_PROMPT name", () => {
     expect(p).not.toContain("Blackbox");
     expect(p).not.toMatch(/Address the developer as\s*\./);
   });
+
+  it("tells the agent it can forget on request", () => {
+    expect(KAYA_SYSTEM_PROMPT("/w")).toMatch(/`forget`/);
+  });
 });
