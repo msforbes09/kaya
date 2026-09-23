@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
+import { SERVER_ROUTES } from "./src/pwa-routes";
 
 export default defineConfig({
   plugins: [
@@ -20,8 +21,8 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // Never cache the API or the socket; the shell is what should work offline.
-        navigateFallbackDenylist: [/^\/api/, /^\/ws/],
+        // Never answer server routes from the shell; the shell is what should work offline.
+        navigateFallbackDenylist: SERVER_ROUTES,
       },
     }),
   ],
