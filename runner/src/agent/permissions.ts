@@ -1,4 +1,4 @@
-import type { CanUseTool } from "@anthropic-ai/claude-agent-sdk";
+import type { CanUseTool, HookJSONOutput } from "@anthropic-ai/claude-agent-sdk";
 
 import destructivePatterns from "./destructive-patterns.json" with { type: "json" };
 
@@ -9,11 +9,13 @@ import destructivePatterns from "./destructive-patterns.json" with { type: "json
 const DESTRUCTIVE = destructivePatterns.map((p) => new RegExp(p.source, p.flags));
 
 /**
- * Tools safe to run without asking. Read, Grep and Glob are deliberately not
- * here: bare `allowedTools` entries skip `canUseTool`, and the gate below has
- * to see file paths to keep secrets files away from the model.
+ * Tools loaded and approved up front. The CLI auto-approves read-only tools and
+ * read-only shell commands before `canUseTool` is ever consulted, so the secrets
+ * screen lives in `preToolUseGate`, a PreToolUse hook, which the CLI runs for
+ * every tool call. Read, Grep and Glob must be listed or they are left deferred
+ * and the model falls back to `grep -r` in Bash.
  */
-export const AUTO_ALLOWED = ["LS", "WebFetch", "WebSearch", "TodoWrite"];
+export const AUTO_ALLOWED = ["Read", "Glob", "Grep", "LS", "WebFetch", "WebSearch", "TodoWrite"];
 
 /** Files whose contents must never reach the model, the transcript, or TTS. */
 const SECRET_FILE_PATTERNS = [
@@ -40,6 +42,37 @@ function touchesSecretFile(cmd: string): boolean {
 
 const READ_TOOLS = new Set(["Read", "Grep", "Glob", "NotebookRead"]);
 
+/** Grep glob that skips every secrets file when the model did not choose one itself. */
+const SECRET_EXCLUDE_GLOB =
+  "!{.env,.env.*,*.pem,*.key,*.p12,*.pfx,*.jks,*.keystore,id_rsa*,id_dsa*,id_ecdsa*,id_ed25519*,.netrc,.npmrc,.pypirc}";
+
+const pre = (permissionDecision: "allow" | "deny" | "ask", extra: Record<string, unknown> = {}): HookJSONOutput => ({
+  hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision, ...extra },
+});
+
+/**
+ * PreToolUse gate. Verified against the CLI: read-only tools and read-only
+ * shell commands (`ls`, `cat .env`) never reach `canUseTool`, but every call
+ * passes through here first. Deny secrets reads, rewrite directory greps to
+ * skip secrets files, and turn destructive or secrets-touching shell commands
+ * into an "ask", which the CLI then routes to `canUseTool` and the human.
+ */
+export async function preToolUseGate(toolName: string, input: unknown): Promise<HookJSONOutput> {
+  const i = (input ?? {}) as Record<string, unknown>;
+  if (READ_TOOLS.has(toolName)) {
+    const p = String(i.file_path ?? i.path ?? "");
+    if (isSecretPath(p)) return pre("deny", { permissionDecisionReason: "Kaya never reads secrets files." });
+    if (toolName === "Grep" && !i.glob) return pre("allow", { updatedInput: { ...i, glob: SECRET_EXCLUDE_GLOB } });
+    return {};
+  }
+  if (toolName === "Bash") {
+    const cmd = String(i.command ?? "");
+    if (DESTRUCTIVE.some((re) => re.test(cmd))) return pre("ask", { permissionDecisionReason: "destructive command" });
+    if (touchesSecretFile(cmd)) return pre("ask", { permissionDecisionReason: "touches a secrets file" });
+  }
+  return {};
+}
+
 export type PermissionAsk = (question: string, detail: string) => Promise<boolean>;
 
 /**
@@ -50,10 +83,8 @@ export type PermissionAsk = (question: string, detail: string) => Promise<boolea
 export function buildCanUseTool(ask: PermissionAsk): CanUseTool {
   return async (toolName, input) => {
     if (READ_TOOLS.has(toolName)) {
-      const p = String((input as { file_path?: string; path?: string }).file_path ?? (input as { path?: string }).path ?? "");
-      return isSecretPath(p)
-        ? { behavior: "deny", message: "Kaya never reads secrets files." }
-        : { behavior: "allow", updatedInput: input };
+      // Only reachable if the hook let it through; the path screen already ran there.
+      return { behavior: "allow", updatedInput: input };
     }
 
     if (toolName === "Edit" || toolName === "Write" || toolName === "MultiEdit" || toolName === "NotebookEdit") {
