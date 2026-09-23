@@ -25,7 +25,10 @@ Ideas to discuss before building. None is agreed yet.
 - Memory confidence: weight facts by how recently they were confirmed, not a uniform decay.
 - Correct memory by voice ("forget that", "that's wrong now"). The forget script is a start.
 - Memory hygiene: a periodic pass that merges duplicates and prunes stale facts so the store doesn't bloat into noise.
-- Semantic recall: use the unused embeddings column alongside the subject index.
+- Kaya identity, in two layers:
+  - Core memories: a small, pinned set of formative memories that define who Kaya is and its relationship with the member. Always loaded into the prompt, never searched, never decayed. Promoted deliberately (by the member, or proposed by Kaya and confirmed), not by volume.
+  - Lived history: everything else (past conversations, events, changed decisions). Grows without bound, so it is retrieved, not loaded.
+- Semantic recall (RAG): needed once lived history exists. Use the unused embeddings column with keyword search, ranked to prefer recent, confirmed facts over superseded ones. Not needed before identity work; until then, loading all memories into the prompt is enough.
 - Keep talking while the agent works: a conversational voice that stays responsive during a long turn and reports when the task finishes. The mid-turn utterance queue is a partial step.
 - Research only: a native speech-to-speech model for conversation, with Claude doing the tasks. Would reopen the ElevenLabs decision.
 - Morning briefing: a scheduled summary of overnight GitHub activity and failing CI, spoken when the app opens.
