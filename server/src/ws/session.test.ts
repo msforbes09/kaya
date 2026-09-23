@@ -223,4 +223,22 @@ describe("Session", () => {
     const types = link.sent.map((m) => JSON.parse(m).type);
     expect(types).toEqual(["turn_start", "cancel"]);
   });
+
+  it("recreates the conversation when its row is gone and tells the phone the new id", async () => {
+    const hub = new RunnerHub(memory, () => "turn-1");
+    const link = runnerLink();
+    hub.attach("m1", "r1", "mac", link);
+    const { ws, json } = fakeWs();
+    const s = new Session(ws, "m1", hub, speaker);
+    await s.handle(JSON.stringify({ type: "hello" }));
+    vi.mocked(repo.createConversation).mockResolvedValueOnce({ id: "c2", memberId: "m1", runnerId: null, agentSessionId: null } as never);
+    vi.mocked(repo.addMessage).mockRejectedValueOnce(Object.assign(new Error("fk"), { code: "23503" }));
+
+    await s.handle(JSON.stringify({ type: "user_text", text: "hi" }));
+
+    expect(json()).toContainEqual({ type: "ready", conversationId: "c2" });
+    expect(repo.addMessage).toHaveBeenCalledWith("c2", "user", "hi");
+    expect(JSON.parse(link.sent[0])).toMatchObject({ type: "turn_start", conversationId: "c2", text: "hi" });
+    expect(json().filter((m) => m.type === "error")).toEqual([]);
+  });
 });

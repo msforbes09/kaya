@@ -10,13 +10,15 @@ import { executeTurn, PermissionBroker } from "./turn.js";
 export interface WebSocketLike {
   send(d: string): void;
   close(): void;
-  on(event: "open" | "message" | "close" | "error", cb: (...a: any[]) => void): void;
+  on(event: "open" | "message" | "close" | "error" | "unexpected-response", cb: (...a: any[]) => void): void;
 }
 
 export interface ClientDeps {
   makeSocket?: (url: string, headers: Record<string, string>) => WebSocketLike;
   sleep?: (ms: number) => Promise<void>;
   log?: (line: string) => void;
+  /** Jitter source for the reconnect backoff; tests pin it. */
+  random?: () => number;
   mcpServer?: ReturnType<typeof createKayaMcpServer>;
   runAgent?: typeof runAgentTurn;
 }
@@ -66,13 +68,20 @@ export class RunnerClient {
     s.on("open", () => { this.attempt = 0; log(`connected to ${this.url()}`); });
     s.on("message", (data: unknown) => this.handle(String(data)));
     s.on("error", (err: unknown) => log(`socket error: ${err instanceof Error ? err.message : String(err)}`));
-    s.on("close", () => {
+    s.on("unexpected-response", (_req: unknown, res: { statusCode?: number }) =>
+      log(`${this.cfg.cloudUrl} answered HTTP ${res?.statusCode ?? "?"} instead of a WebSocket upgrade. Is that Kaya's cloud, and is it up?`));
+    s.on("close", (code?: number) => {
       this.socket = null;
       this.bridge.rejectAll("runner disconnected");
       this.current?.abort();
       this.current = null;
       if (this.stopped) return;
-      const wait = nextBackoffMs(this.attempt++);
+      if (code === 4401) {
+        this.stopped = true;
+        log("runner token rejected by the cloud (revoked or re-paired elsewhere). Delete ~/.kaya/runner.json and start again to pair.");
+        return;
+      }
+      const wait = nextBackoffMs(this.attempt++, this.deps.random);
       log(`disconnected, retrying in ${wait / 1000}s`);
       void (this.deps.sleep ?? defaultSleep)(wait).then(() => { if (!this.stopped) this.connect(); });
     });
