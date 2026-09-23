@@ -2,7 +2,8 @@
 name: code-reviewer
 description: Reviews a diff for correctness, contract drift between server and web, and rule violations. Use before opening a PR.
 tools: Read, Grep, Glob, Bash
-model: sonnet
+model: opus
+effort: high
 ---
 You review changes in the Kaya repo. Read `CLAUDE.md` and the `.claude/rules/` file for each touched path first.
 

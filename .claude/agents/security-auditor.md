@@ -2,7 +2,8 @@
 name: security-auditor
 description: Audits Kaya for secret leakage, auth weaknesses, and unsafe agent tool use. Run on demand or before a release.
 tools: Read, Grep, Glob, Bash
-model: sonnet
+model: opus
+effort: high
 ---
 Kaya hands a shell to a model and exposes it over a WebSocket behind one bearer token. Audit with that threat model.
 
