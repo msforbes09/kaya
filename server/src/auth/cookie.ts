@@ -11,26 +11,35 @@ function mac(domain: "session" | "pending", payload: string, secret: string): st
   return createHmac("sha256", secret).update(`${domain}:${payload}`).digest("base64url");
 }
 
-/** value = base64url(memberId).issuedAtMs.hmac */
-export function signSession(memberId: string, secret: string, now = Date.now()): string {
+export interface SessionClaims {
+  memberId: string;
+  /** Must equal the member row's session_epoch; bumping that signs the member out everywhere. */
+  epoch: number;
+}
+
+/** value = base64url(memberId).issuedAtMs.epoch.hmac */
+export function signSession(memberId: string, secret: string, now = Date.now(), epoch = 0): string {
   const encodedId = Buffer.from(memberId).toString("base64url");
-  const payload = `${encodedId}.${now}`;
+  const payload = `${encodedId}.${now}.${epoch}`;
   return `${payload}.${mac("session", payload, secret)}`;
 }
 
-export function verifySession(value: string | undefined, secret: string, now = Date.now()): string | null {
+/** Checks signature and age only. Whether the member still exists, and the epoch, is `authorizeSession`'s job. */
+export function verifySession(value: string | undefined, secret: string, now = Date.now()): SessionClaims | null {
   if (!value) return null;
   const parts = value.split(".");
-  if (parts.length !== 3) return null;
-  const [encodedId, issued, sig] = parts;
-  const payload = `${encodedId}.${issued}`;
+  if (parts.length !== 4) return null;
+  const [encodedId, issued, epochStr, sig] = parts;
+  const payload = `${encodedId}.${issued}.${epochStr}`;
   const expected = mac("session", payload, secret);
   const a = Buffer.from(sig);
   const b = Buffer.from(expected);
   if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
   const issuedAt = Number(issued);
   if (!Number.isFinite(issuedAt) || now - issuedAt > MAX_AGE_MS) return null;
-  return Buffer.from(encodedId, "base64url").toString();
+  const epoch = Number(epochStr);
+  if (!Number.isInteger(epoch) || epoch < 0) return null;
+  return { memberId: Buffer.from(encodedId, "base64url").toString(), epoch };
 }
 
 export function sessionCookieHeader(value: string, secure: boolean): string {

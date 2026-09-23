@@ -6,6 +6,8 @@ export const members = pgTable("members", {
   githubLogin: text("github_login").notNull(),
   avatarUrl: text("avatar_url"),
   isAdmin: boolean("is_admin").default(false).notNull(),
+  /** Bumped by `npm run signout`; cookies carry the epoch they were issued under. */
+  sessionEpoch: integer("session_epoch").default(0).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 

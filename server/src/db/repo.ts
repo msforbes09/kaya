@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, isNull, or } from "drizzle-orm";
+import { and, desc, eq, ilike, isNull, or, sql } from "drizzle-orm";
 import { db, schema } from "./client.js";
 
 // members
@@ -17,6 +17,16 @@ export async function createMember(u: { githubId: number; login: string; avatarU
     .values({ githubId: u.githubId, githubLogin: u.login, avatarUrl: u.avatarUrl, isAdmin: u.isAdmin ?? false })
     .returning();
   return row;
+}
+
+/** Invalidates every session cookie the member holds. */
+export async function revokeSessions(id: string) {
+  await db.update(schema.members).set({ sessionEpoch: sql`${schema.members.sessionEpoch} + 1` }).where(eq(schema.members.id, id));
+}
+
+export async function revokeAllSessions(): Promise<number> {
+  const rows = await db.update(schema.members).set({ sessionEpoch: sql`${schema.members.sessionEpoch} + 1` }).returning({ id: schema.members.id });
+  return rows.length;
 }
 
 export async function deleteMember(id: string) {

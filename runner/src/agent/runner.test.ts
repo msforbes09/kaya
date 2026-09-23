@@ -14,6 +14,11 @@ describe("buildQueryOptions", () => {
     expect(String(o.systemPrompt)).toContain("arnel");
   });
 
+  it("never loads the workspace's own settings, so its allow rules cannot bypass the gate", () => {
+    const o = buildQueryOptions({ workspace: "/w", resumeSessionId: null, model: "sonnet", userName: "", mcpServer: {} as never, ask: async () => true });
+    expect(o.settingSources).toBeUndefined();
+  });
+
   it("starts fresh when there is no session to resume", () => {
     const o = buildQueryOptions({ workspace: "/w", resumeSessionId: null, model: "sonnet", mcpServer: {} as never, ask: async () => true });
     expect(o.resume).toBeUndefined();

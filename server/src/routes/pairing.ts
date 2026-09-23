@@ -1,7 +1,9 @@
 import { Hono } from "hono";
 import { getCookie } from "hono/cookie";
 import { randomUUID } from "node:crypto";
-import { SESSION_COOKIE, verifySession } from "../auth/cookie.js";
+import { SESSION_COOKIE } from "../auth/cookie.js";
+import { requireSameOrigin } from "../auth/middleware.js";
+import { authorizeSession } from "../auth/session.js";
 import { hashRunnerToken, newPairingCode, newRunnerToken, pairingExpired, pairingExpiresAt } from "../auth/pairing.js";
 import * as repo from "../db/repo.js";
 
@@ -79,7 +81,7 @@ export function pairingRoutes({ secret, publicUrl, now = Date.now }: PairingDeps
 
   app.get("/api/pair/describe", async (c) => {
     const nowMs = now();
-    const memberId = verifySession(getCookie(c, SESSION_COOKIE), secret, nowMs);
+    const memberId = (await authorizeSession(getCookie(c, SESSION_COOKIE), secret, nowMs))?.id;
     if (!memberId) return c.json({ error: "unauthorized" }, 401);
     // Every lookup costs an attempt, hit or miss, and out of the same budget as
     // confirm: otherwise this endpoint is a free oracle for live codes.
@@ -91,9 +93,9 @@ export function pairingRoutes({ secret, publicUrl, now = Date.now }: PairingDeps
     return c.json({ name: pendingMeta.get(row.runnerPublicId)?.name ?? "runner" });
   });
 
-  app.post("/api/pair/confirm", async (c) => {
+  app.post("/api/pair/confirm", requireSameOrigin(publicUrl), async (c) => {
     const nowMs = now();
-    const memberId = verifySession(getCookie(c, SESSION_COOKIE), secret, nowMs);
+    const memberId = (await authorizeSession(getCookie(c, SESSION_COOKIE), secret, nowMs))?.id;
     if (!memberId) return c.json({ error: "unauthorized" }, 401);
     if (!spendAttempt(memberId, nowMs)) return c.json({ error: "too many attempts" }, 429);
 

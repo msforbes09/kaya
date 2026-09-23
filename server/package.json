@@ -13,7 +13,9 @@
     "invite": "tsx src/scripts/invite.ts",
     "invite:prod": "node dist/scripts/invite.js",
     "forget": "tsx src/scripts/forget.ts",
-    "forget:prod": "node dist/scripts/forget.js"
+    "forget:prod": "node dist/scripts/forget.js",
+    "signout": "tsx src/scripts/signout.ts",
+    "signout:prod": "node dist/scripts/signout.js"
   },
   "dependencies": {
     "@elevenlabs/elevenlabs-js": "^2.0.0",

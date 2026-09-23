@@ -11,9 +11,10 @@ import {
   signSession,
   SESSION_COOKIE,
   verifyPending,
-  verifySession,
 } from "../auth/cookie.js";
 import { exchangeGithubCode, githubAuthorizeUrl } from "../auth/github.js";
+import { requireSameOrigin } from "../auth/middleware.js";
+import { authorizeSession } from "../auth/session.js";
 import * as repo from "../db/repo.js";
 import { escapeHtml } from "../html.js";
 
@@ -64,23 +65,23 @@ export function authRoutes({ config, exchange = exchangeGithubCode }: AuthDeps) 
       );
     }
 
-    c.header("Set-Cookie", sessionCookieHeader(signSession(member.id, config.COOKIE_SECRET), config.isProd), { append: true });
+    c.header("Set-Cookie", sessionCookieHeader(signSession(member.id, config.COOKIE_SECRET, Date.now(), member.sessionEpoch), config.isProd), { append: true });
     return c.redirect("/");
   });
 
-  app.post("/auth/invite", async (c) => {
+  app.post("/auth/invite", requireSameOrigin(config.PUBLIC_URL), async (c) => {
     const pending = verifyPending(getCookie(c, PENDING_COOKIE), config.COOKIE_SECRET);
     if (!pending) return c.html(page("Kaya — invite", `<main><h1>Sign-in expired</h1><p><a href="/auth/github">Start again</a></p></main>`), 400);
 
-    const signIn = (memberId: string) => {
-      c.header("Set-Cookie", sessionCookieHeader(signSession(memberId, config.COOKIE_SECRET), config.isProd), { append: true });
+    const signIn = (m: { id: string; sessionEpoch: number }) => {
+      c.header("Set-Cookie", sessionCookieHeader(signSession(m.id, config.COOKIE_SECRET, Date.now(), m.sessionEpoch), config.isProd), { append: true });
       c.header("Set-Cookie", clearPendingCookieHeader(), { append: true });
       return c.redirect("/");
     };
 
     // A resubmit inside the pending window must not hit the unique github_id.
     const already = await repo.findMemberByGithubId(pending.githubId);
-    if (already) return signIn(already.id);
+    if (already) return signIn(already);
 
     const form = await c.req.parseBody();
     const clean = String(form.invite ?? "").trim().toUpperCase();
@@ -96,18 +97,16 @@ export function authRoutes({ config, exchange = exchangeGithubCode }: AuthDeps) 
       return c.html(page("Kaya — invite", `<main><h1>Invite not valid</h1><p>That code is unknown or already used. Ask for a new one.</p></main>`), 403);
     }
 
-    return signIn(member.id);
+    return signIn(member);
   });
 
-  app.post("/auth/logout", (c) => {
+  app.post("/auth/logout", requireSameOrigin(config.PUBLIC_URL), (c) => {
     c.header("Set-Cookie", clearSessionCookieHeader());
     return c.json({ ok: true });
   });
 
   app.get("/api/me", async (c) => {
-    const id = verifySession(getCookie(c, SESSION_COOKIE), config.COOKIE_SECRET);
-    if (!id) return c.json({ error: "unauthorized" }, 401);
-    const m = await repo.getMember(id);
+    const m = await authorizeSession(getCookie(c, SESSION_COOKIE), config.COOKIE_SECRET);
     if (!m) return c.json({ error: "unauthorized" }, 401);
     return c.json({ id: m.id, login: m.githubLogin, avatarUrl: m.avatarUrl });
   });
