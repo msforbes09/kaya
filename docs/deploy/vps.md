@@ -34,6 +34,55 @@ DATABASE_URL=postgres://kaya:<pw>@host.docker.internal:5432/kaya
 DOMAIN=<DOMAIN>
 ```
 
+### Ports
+
+`PORT` (app), `HTTP_PORT` and `HTTPS_PORT` (Caddy on the host) all come from
+`.env`. If the VPS already runs nginx, Traefik or another proxy on 80/443,
+leave Caddy out and publish the app on loopback for that proxy to reach:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.expose.yml up -d --build app
+```
+
+Then proxy `https://<DOMAIN>` to `http://127.0.0.1:<PORT>` with WebSocket
+upgrade enabled. nginx example (`/etc/nginx/sites-available/kaya`):
+
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name <DOMAIN>;
+    # Your existing certificate setup (certbot, or a Cloudflare origin certificate).
+    ssl_certificate     /etc/ssl/<DOMAIN>.pem;
+    ssl_certificate_key /etc/ssl/<DOMAIN>.key;
+
+    location / {
+        proxy_pass         http://127.0.0.1:8787;
+        proxy_http_version 1.1;
+        proxy_set_header   Upgrade $http_upgrade;
+        proxy_set_header   Connection "upgrade";
+        proxy_set_header   Host $host;
+        proxy_set_header   X-Forwarded-Proto https;
+        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_read_timeout 3600s;   # phone and runner sockets stay open for hours
+        proxy_send_timeout 3600s;
+        client_max_body_size 2m;
+    }
+}
+server {
+    listen 80;
+    server_name <DOMAIN>;
+    return 301 https://$host$request_uri;
+}
+```
+
+Behind Cloudflare (orange cloud): WebSockets pass through on every plan and
+the runner's bearer header is untouched. Set SSL/TLS mode to **Full (strict)**
+with a Cloudflare origin certificate on nginx, or **Full** with certbot. Do
+not cache `/ws`, `/runner`, `/api/*` or `/auth/*` (a page rule or cache rule
+for `<DOMAIN>/api/*` set to bypass is enough; sockets are never cached). The
+first-turn spoken reply can take longer than Cloudflare's 100 second HTTP
+timeout, but audio arrives over the socket, so that limit does not apply.
+
 ## 4. First deploy
 
 ```bash
@@ -76,5 +125,5 @@ docker compose logs -f app
 KAYA_CLOUD_URL=https://<DOMAIN> npx kaya-runner
 ```
 
-Until `kaya-runner` is published to npm, run it from a checkout instead:
-`npm run dev:runner`.
+Team members need Node 20+ and a `claude` login on that machine. The package
+page on npm carries the full instructions.
