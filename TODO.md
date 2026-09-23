@@ -4,14 +4,12 @@
 - Decide whether runtime Kaya should read the target repo's own `.claude/` folder instead of a hard-coded system prompt.
 - Embeddings column exists in the schema but is unused in v1.
 - SDK warns `CLAUDE_SDK_CAN_USE_TOOL_SHADOWED`: bare names in `allowedTools` bypass `canUseTool`. Intended for the read-only set, but decide whether to move gating to a PreToolUse hook so one path handles everything.
-- Server crashes on an unhandled DB error inside the WebSocket `onOpen` (seen when tables were missing). Catch it, send an `error` message, close the socket.
 - Publish `kaya-runner` to npm.
 - Multiple runners per member.
 - Hosted GitHub sandbox runner.
 - Phone auto-reconnect.
 - Mic pause while speaking.
 - Model choice per member from the UI (the runner reads `KAYA_MODEL` or its config file today).
-- Runner reconnect: add jitter to the backoff and stop retrying on a 4401 close (revoked token) with a distinct log line.
 - Cookie revocation: sessions carry no epoch, so a deleted member keeps a live socket up to 30 days; add a member-level session version.
 - `server/src/ws/runner-socket.ts` has no test; add one asserting a bad bearer token closes with 4401.
 - `repo.upsertRunner` is delete-then-insert outside a transaction; wrap it.
@@ -23,6 +21,5 @@
 - `runner/src/agent/prompt.ts` hardcodes the user's name as "Blackbox"; pass the member's GitHub login (or a display name) with each turn and greet that.
 - Joined assistant text drops the space between spoken chunks ("...now.Done, Blackbox."). Fix in the chunker or the transcript reducer.
 - Session recording: optionally save each conversation's MP3 frames and transcript to disk or the DB for replay while testing.
-- `Session` caches the conversation from `hello`; if that row is deleted (memory reset) the next turn fails on the messages FK until the page reloads. Recreate the conversation when the insert fails, and add a "forget everything" admin command so nobody has to run SQL.
-- The agent started `python -m http.server 5173` in the workspace and took Kaya's own web port after Vite exited; the runner then got 404s. Tell the agent in the prompt which ports are Kaya's, and have the runner log a clear line when the cloud URL answers with a non-WebSocket response.
+- Add a "forget everything" admin command so a memory reset does not need SQL.
 - Turns do not survive a disconnect: the hub fails every live turn on runner detach, and the runner aborts its turn on socket close, so a cloud restart or a network blip kills whatever the agent was doing (the `AbortError: Stream closed` seen on 2026-09-23 was the SDK's side of that abort). Surviving it needs the runner to keep the turn running, buffer its output, and re-announce the turn on reconnect, plus the hub re-adopting it. Design first.

@@ -61,6 +61,22 @@ export class Session {
     }
   }
 
+  /**
+   * Stores the user's line. If the conversation row vanished under us (a
+   * memory reset while the tab stayed open) the insert fails its foreign key;
+   * start a fresh conversation, tell the phone its id, and store there instead.
+   */
+  private async storeUserMessage(conv: { id: string }, text: string): Promise<void> {
+    try {
+      await repo.addMessage(conv.id, "user", text);
+    } catch (err) {
+      if ((err as { code?: string }).code !== "23503") throw err;
+      await this.hello();
+      Object.assign(conv, this.conversation);
+      await repo.addMessage(conv.id, "user", text);
+    }
+  }
+
   private async hello(existingId?: string) {
     const existing = existingId ? await repo.getConversation(existingId, this.memberId) : null;
     const conv = existing ?? (await repo.createConversation(this.memberId));
@@ -126,7 +142,7 @@ export class Session {
     }
 
     this.send({ type: "user_echo", text: clean });
-    await repo.addMessage(conv.id, "user", clean);
+    await this.storeUserMessage(conv, clean);
 
     const resumeSessionId = conv.runnerId === status.runnerId ? conv.agentSessionId : null;
     let resolveFinish: () => void;

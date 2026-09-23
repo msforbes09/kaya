@@ -24,6 +24,7 @@ describe("RunnerClient", () => {
         makeSocket: (url, headers) => { const s = fakeSocket(); s.headers = headers; sockets.push(s); expect(url).toBe("wss://k.example/runner"); return s; },
         sleep: async (ms) => { sleeps.push(ms); },
         log: () => {},
+        random: () => 0.5,
         mcpServer: {} as never,
       },
     );
@@ -84,6 +85,7 @@ describe("RunnerClient", () => {
         makeSocket: () => { const s = fakeSocket(); sockets.push(s); return s; },
         sleep: (ms) => { sleeps.push(ms); return new Promise<void>((r) => { resolveSleep = r; }); },
         log: () => {},
+        random: () => 0.5,
         mcpServer: {} as never,
       },
     );
@@ -100,6 +102,38 @@ describe("RunnerClient", () => {
     resolveSleep();
     await new Promise((r) => setTimeout(r, 0));
     expect(sockets.length).toBe(2);
+    client.stop();
+  });
+
+  it("stops retrying when the cloud closes with 4401 and says how to pair again", async () => {
+    const sockets: ReturnType<typeof fakeSocket>[] = [];
+    const sleeps: number[] = [];
+    const lines: string[] = [];
+    const client = new RunnerClient(
+      { cloudUrl: "https://k.example", token: "tok", workspace: "/w" },
+      { makeSocket: () => { const s = fakeSocket(); sockets.push(s); return s; }, sleep: async (ms) => { sleeps.push(ms); }, log: (l) => lines.push(l), mcpServer: {} as never },
+    );
+    client.start();
+    sockets[0].emit("open");
+    sockets[0].emit("close", 4401, Buffer.from("unauthorized"));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(sleeps).toEqual([]);
+    expect(sockets.length).toBe(1);
+    expect(lines.join("\n")).toMatch(/token.*rejected/i);
+    expect(lines.join("\n")).toContain("runner.json");
+  });
+
+  it("names the HTTP status when the cloud URL answers with something other than a WebSocket", async () => {
+    const lines: string[] = [];
+    const s = fakeSocket();
+    const client = new RunnerClient(
+      { cloudUrl: "https://k.example", token: "tok", workspace: "/w" },
+      { makeSocket: () => s, sleep: async () => {}, log: (l) => lines.push(l), mcpServer: {} as never, random: () => 0.5 },
+    );
+    client.start();
+    s.emit("unexpected-response", {}, { statusCode: 404 });
+    expect(lines.join("\n")).toContain("404");
+    expect(lines.join("\n")).toContain("https://k.example");
     client.stop();
   });
 });
